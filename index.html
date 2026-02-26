@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BCH Food Ordering</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bootstrap-4/bootstrap-4.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary-color: #ff6b35; --secondary-color: #ff9f1c; --bg-color: #f4f7f6; --text-color: #2d3436; --card-radius: 16px; }
+        body { background-color: var(--bg-color); font-family: 'Anuphan', sans-serif; color: var(--text-color); padding-bottom: 80px; }
+        .navbar-custom { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 15px 0; }
+        .brand-title { font-weight: 700; color: var(--primary-color); font-size: 1.5rem; }
+        .hidden { display: none !important; }
+        .btn-food { background: linear-gradient(45deg, var(--primary-color), var(--secondary-color)); border: none; color: white; border-radius: 50px; padding: 10px 25px; font-weight: 600; transition: all 0.3s; }
+        .cart-fab { position: fixed; bottom: 30px; right: 30px; z-index: 1000; background: var(--text-color); color: white; border-radius: 50px; padding: 15px 25px; box-shadow: 0 8px 20px rgba(0,0,0,0.3); cursor: pointer; font-weight: 600; transition: transform 0.2s; display: flex; align-items: center; gap: 10px; }
+        .auth-card { border: none; border-radius: var(--card-radius); box-shadow: 0 10px 30px rgba(0,0,0,0.08); overflow: hidden; }
+        .menu-cat-card { cursor: pointer; border: none; border-radius: var(--card-radius); transition: all 0.3s; background: white; overflow: hidden; height: 100%; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .menu-cat-icon { background: #fff5eb; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; color: var(--primary-color); }
+        .food-card { cursor: pointer; border: none; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; height: 100%; background: white; }
+        .food-img { height: 160px; object-fit: cover; width: 100%; }
+        .nav-pills .nav-link.active { background-color: var(--primary-color); }
+        .nav-pills .nav-link { color: var(--text-color); }
+        .swal2-popup { font-family: 'Anuphan', sans-serif; border-radius: 20px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-custom sticky-top">
+        <div class="container">
+            <span class="navbar-brand brand-title"><i class="fas fa-utensils me-2"></i>BCH Food</span>
+            <button id="nav-logout-btn" class="btn btn-sm btn-outline-danger rounded-pill hidden" onclick="logout()"><i class="fas fa-sign-out-alt"></i> ออกจากระบบ</button>
+        </div>
+    </nav>
+    <div id="cart-btn" class="cart-fab hidden" onclick="showCart()"><i class="fas fa-shopping-basket fa-lg"></i> <span id="cart-count">0</span> <small class="ms-1">รายการ</small></div>
+    <div class="container mt-4">
+        <div id="auth-section">
+            <div class="row justify-content-center">
+                <div class="col-md-5 col-lg-4">
+                    <div class="text-center mb-4"><h4 class="fw-bold text-muted">ยินดีต้อนรับสู่ระบบสั่งอาหาร</h4></div>
+                    <div class="card auth-card p-4">
+                        <ul class="nav nav-pills nav-fill mb-4">
+                            <li class="nav-item"><button class="nav-link active" onclick="toggleAuth('login')">เข้าสู่ระบบ</button></li>
+                            <li class="nav-item"><button class="nav-link" onclick="toggleAuth('register')">ลงทะเบียน</button></li>
+                        </ul>
+                        <div id="login-form">
+                            <div class="mb-3"><label class="form-label text-muted small">เบอร์โทรศัพท์ (10 หลัก)</label><input type="tel" id="login-phone" class="form-control form-control-lg" placeholder="กรอกเบอร์โทรศัพท์" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'');"></div>
+                            <button class="btn btn-food w-100 btn-lg shadow-sm" onclick="doLogin()">เข้าใช้งาน</button>
+                        </div>
+                        <div id="register-form" class="hidden">
+                            <div class="mb-3"><label class="form-label text-muted small">ชื่อ-นามสกุล</label><input type="text" id="reg-name" class="form-control" placeholder="ระบุชื่อของคุณ"></div>
+                            <div class="mb-3"><label class="form-label text-muted small">เบอร์โทรศัพท์ (10 หลัก)</label><input type="tel" id="reg-phone" class="form-control" placeholder="ระบุเบอร์โทรศัพท์" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'');"></div>
+                            <button class="btn btn-success w-100 rounded-pill" onclick="doRegister()">ลงทะเบียนสมาชิก</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="app-section" class="hidden">
+            <div class="text-center my-4"><h3 class="fw-bold" style="color: var(--text-color);">สวัสดี, <span id="user-display-name" style="color: var(--primary-color);">User</span> 👋</h3><p class="text-muted small">เลือกเมนูความอร่อยได้เลยครับ</p></div>
+            <div class="row g-4 justify-content-center">
+                <div class="col-6 col-md-4"><div class="card menu-cat-card p-4 text-center h-100" onclick="openMenu1()"><div class="menu-cat-icon"><i class="fa-solid fa-kitchen-set fa-2x"></i></div><h5 class="fw-bold mb-1">อาหารตามสั่ง</h5><small class="text-muted">Cooked to Order</small></div></div>
+                <div class="col-6 col-md-4"><div class="card menu-cat-card p-4 text-center h-100" onclick="openMenu2()"><div class="menu-cat-icon" style="color: #00cec9; background: #e0fbfb;"><i class="fas fa-utensils fa-2x"></i></div><h5 class="fw-bold mb-1">ข้าวราดแกง</h5><small class="text-muted">Rice & Curry</small></div></div>
+            </div>
+            <div class="text-center mt-5"><small class="text-muted">© 2026 BCH Food Ordering System</small><br><small class="text-muted">Thumrong Malaiwalee</small></div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        // **********************************************************
+        // ⚠️ ใส่ลิงก์ Web App URL ที่ได้จากการ Deploy ตรงนี้ครับ ⚠️
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzLp6Unn3Af6lm-AYkdhN5JJmApndthcYqprh4_7daG-ktNxgrVVVie8_28PDUVwwqEVw/exec"; 
+        // **********************************************************
+
+        var currentUser = null;
+        var menuData = { menu1: [], menu2: [] };
+        var cart = [];
+        var PROMPTPAY_ID = "0107537000017";
+
+        $(document).ready(function(){
+            var storedUser = localStorage.getItem('bch_user');
+            if(storedUser) { currentUser = JSON.parse(storedUser); showApp(); }
+        });
+
+        // --- สะพานเชื่อมต่อไปยัง Google Apps Script ---
+        function callApi(action, data) {
+            // ใช้ fetch ส่งข้อมูลแบบ POST ไปยัง Google Apps Script
+            return fetch(SCRIPT_URL + "?action=" + action, {
+                method: 'POST',
+                body: JSON.stringify(data) // ส่งข้อมูลไปใน Body (แบบ JSON text)
+            }).then(function(response) {
+                return response.json();
+            });
+        }
+
+        function toggleAuth(mode) {
+            if(mode === 'login'){ $('#login-form').removeClass('hidden'); $('#register-form').addClass('hidden'); $('.nav-link').removeClass('active'); $('.nav-link:first').addClass('active'); } 
+            else { $('#login-form').addClass('hidden'); $('#register-form').removeClass('hidden'); $('.nav-link').removeClass('active'); $('.nav-link:last').addClass('active'); }
+        }
+
+        function doRegister() {
+            var name = $('#reg-name').val();
+            var phone = $('#reg-phone').val();
+            if(!name || !phone) return Swal.fire({title: 'ข้อมูลไม่ครบ', text: 'กรุณากรอกข้อมูลให้ครบถ้วน', icon: 'warning', showCloseButton: true});
+            if(phone.length !== 10) return Swal.fire({title: 'รูปแบบไม่ถูกต้อง', text: 'กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก', icon: 'warning', showCloseButton: true});
+
+            Swal.showLoading();
+            callApi('registerUser', {name: name, phone: phone}).then(function(res){
+                Swal.close();
+                if(res.status) {
+                    Swal.fire({icon: 'success', title: 'ลงทะเบียนสำเร็จ', timer: 1500, showConfirmButton: false});
+                    loginSuccess(res.name, res.phone);
+                } else { Swal.fire({title: 'เกิดข้อผิดพลาด', text: res.msg, icon: 'error'}); }
+            }).catch(err => Swal.fire('Error', 'Connection Failed', 'error'));
+        }
+
+        function doLogin() {
+            var phone = $('#login-phone').val();
+            if(!phone) return Swal.fire({title: 'ข้อมูลไม่ครบ', text: 'กรุณากรอกเบอร์โทรศัพท์', icon: 'warning'});
+            if(phone.length !== 10) return Swal.fire({title: 'รูปแบบไม่ถูกต้อง', text: 'กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก', icon: 'warning'});
+
+            Swal.showLoading();
+            callApi('loginUser', {phone: phone}).then(function(res){
+                Swal.close();
+                if(res.status) { loginSuccess(res.name, res.phone); } 
+                else { Swal.fire({title: 'ไม่พบผู้ใช้', text: res.msg, icon: 'error'}); }
+            }).catch(err => Swal.fire('Error', 'Connection Failed', 'error'));
+        }
+
+        function loginSuccess(name, phone) {
+            currentUser = {name: name, phone: phone};
+            localStorage.setItem('bch_user', JSON.stringify(currentUser));
+            showApp();
+        }
+
+        function logout() {
+            Swal.fire({title: 'ออกจากระบบ?', icon: 'question', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ใช่', cancelButtonText: 'ยกเลิก'}).then(function(result) {
+                if (result.isConfirmed) {
+                    localStorage.removeItem('bch_user'); localStorage.removeItem('bch_pending_order'); currentUser = null; cart = [];
+                    $('#auth-section').removeClass('hidden'); $('#app-section').addClass('hidden'); $('#nav-logout-btn').addClass('hidden'); $('#cart-btn').addClass('hidden');
+                    $('#login-phone').val(''); $('#reg-name').val(''); $('#reg-phone').val(''); toggleAuth('login');
+                }
+            });
+        }
+
+        function showApp() {
+            $('#auth-section').addClass('hidden'); $('#app-section').removeClass('hidden'); $('#nav-logout-btn').removeClass('hidden');
+            $('#user-display-name').text(currentUser.name);
+            var pendingOrder = localStorage.getItem('bch_pending_order');
+            if (pendingOrder) { var order = JSON.parse(pendingOrder); cart = order.cart; updateCartBadge(); showPaymentQr(order.total, order.note); } 
+            else { updateCartBadge(); }
+        }
+
+        function openMenu1() {
+            var now = new Date(); var hour = now.getHours();
+            if (hour < 6 || hour >= 16) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 16:00 น.'}); }
+
+            Swal.showLoading();
+            callApi('getMenuData', {}).then(function(data){
+                menuData = data; Swal.close();
+                var html = '<div class="row g-3">';
+                menuData.menu1.forEach(function(item, index) {
+                    html += '<div class="col-6 col-md-4"><div class="card h-100 food-card" onclick="selectMenu1('+index+')"><img src="'+item.img+'" class="card-img-top food-img" onerror="this.src=\'https://via.placeholder.com/150\'"><div class="card-body p-2 text-center"><h6 class="card-title fw-bold mb-0 text-dark">'+item.name+'</h6></div></div></div>';
+                });
+                html += '</div>';
+                Swal.fire({title: '🍱 อาหารตามสั่ง', html: html, width: 800, showCloseButton: true, showConfirmButton: false, customClass: { popup: 'swal-wide' }});
+            });
+        }
+
+        function selectMenu1(index) {
+            var item = menuData.menu1[index];
+            var meatHtml = item.meats.map(function(m){ return '<option value="'+m.name+'|'+m.price+'">'+m.name+' ('+(m.price>0 ? '+'+m.price : 'ปกติ')+')</option>'; }).join('');
+            var toppingHtml = item.toppings.map(function(t){ return '<div class="form-check"><input class="form-check-input topping-check" type="checkbox" value="'+t.name+'|'+t.price+'" id="top-'+t.name+'"><label class="form-check-label" for="top-'+t.name+'">'+t.name+' (+'+t.price+')</label></div>'; }).join('');
+            
+            var validTypes = item.types.filter(function(t) { return t.trim() !== ""; });
+            var typeBlock = validTypes.length > 0 ? '<div class="mb-2"><label class="fw-bold">ประเภท</label><select id="sel-type" class="form-select">'+validTypes.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('')+'</select></div>' : '<input type="hidden" id="sel-type" value="">';
+
+            var popupHtml = '<div class="text-start px-3"><div class="mb-2"><label class="fw-bold">เนื้อสัตว์</label><select id="sel-meat" class="form-select">'+meatHtml+'</select></div>' + typeBlock + '<div class="mb-2"><label class="fw-bold">Topping</label>'+toppingHtml+'</div><div class="form-check mt-3 p-2 rounded" style="background-color: #ffeaa7;"><input class="form-check-input" type="checkbox" id="takeaway-opt"><label class="form-check-label fw-bold text-dark" for="takeaway-opt">ใส่กล่อง/กลับบ้าน (+5 บาท)</label></div><div class="mt-3 text-center"><label class="fw-bold d-block mb-1">จำนวน</label><div class="btn-group"><button class="btn btn-outline-secondary" onclick="stepQty(-1)">-</button><input type="number" id="sel-qty" class="form-control text-center" value="1" readonly style="width: 60px;"><button class="btn btn-outline-secondary" onclick="stepQty(1)">+</button></div></div></div>';
+
+            Swal.fire({
+                title: item.name, html: popupHtml, showCloseButton: true, confirmButtonText: 'ใส่ตะกร้า', confirmButtonColor: '#ff6b35',
+                preConfirm: function() {
+                    var meat = $('#sel-meat').val().split('|');
+                    var type = $('#sel-type').val();
+                    var qty = parseInt($('#sel-qty').val());
+                    var isTakeaway = $('#takeaway-opt').is(':checked');
+                    var toppingPrice = 0; var toppingDesc = [];
+                    $('.topping-check:checked').each(function() { var t = $(this).val().split('|'); toppingDesc.push(t[0]); toppingPrice += parseInt(t[1]); });
+                    var unitPrice = parseInt(meat[1]) + toppingPrice;
+                    var descExtra = ""; if(isTakeaway) { unitPrice += 5; descExtra = " (กลับบ้าน)"; }
+                    var typeDesc = type ? ', ' + type : '';
+                    var itemDescription = meat[0] + typeDesc + (toppingDesc.length > 0 ? ' + ' + toppingDesc.join(',') : '');
+                    return { id: item.id, name: item.name + descExtra, desc: itemDescription, price: unitPrice, qty: qty, total: unitPrice * qty };
+                }
+            }).then(function(result) { if(result.isConfirmed) addToCart(result.value); });
+        }
+
+        function openMenu2() {
+            var now = new Date(); var hour = now.getHours();
+            if (hour < 6 || hour >= 14) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 14:00 น.'}); }
+
+            Swal.showLoading();
+            callApi('getMenuData', {}).then(function(data){
+                menuData = data; Swal.close();
+                Swal.fire({
+                    title: 'โปรดเลือกรูปแบบ', icon: 'info', showDenyButton: true, showCloseButton: true, confirmButtonText: 'ราดข้าว (จาน)', denyButtonText: 'เป็นกับข้าว (ถุง)', confirmButtonColor: '#ff6b35', denyButtonColor: '#0984e3'
+                }).then(function(result) {
+                    if (result.isConfirmed) selectRiceCurry('rice');
+                    else if (result.isDenied) selectRiceCurry('dish');
+                });
+            });
+        }
+
+        function selectRiceCurry(mode) {
+            var html = '<div class="list-group text-start overflow-auto" style="max-height: 400px;">';
+            menuData.menu2.forEach(function(item, index) {
+                var price = mode === 'rice' ? item.priceRice : item.priceDish;
+                var labelPrice = mode === 'dish' ? price + '.-' : (price > 0 ? '+' + price : '');
+                var inputType = mode === 'rice' ? 'checkbox' : 'radio';
+                html += '<label class="list-group-item d-flex justify-content-between align-items-center cursor-pointer"><div><input class="form-check-input me-2 menu2-check" type="'+inputType+'" name="m2item" value="'+index+'">' + item.name + '</div><span class="badge bg-light text-dark border">'+labelPrice+'</span></label>';
+            });
+            html += '</div>';
+            var title = mode === 'rice' ? 'เลือกกับข้าว (ราดข้าว)' : 'เลือกกับข้าว (ใส่ถุง)';
+            var footer = mode === 'rice' ? '<small class="text-danger">*เลือก 1-4 อย่าง (ราคาเริ่ม 40.-)</small>' : '';
+            if (mode === 'rice') { html += '<div class="form-check mt-3 text-start p-2 rounded" style="background-color: #ffeaa7;"><input class="form-check-input" type="checkbox" id="m2-takeaway"><label class="form-check-label fw-bold text-dark" for="m2-takeaway">ใส่กล่อง/กลับบ้าน (+5 บาท)</label></div>'; }
+            html += '<div class="mt-3 text-center"><label class="fw-bold">จำนวน '+(mode === 'rice'?'จาน':'ถุง')+'</label><br><input type="number" id="m2-qty" class="form-control d-inline-block text-center mt-1" value="1" min="1" style="width:100px;"></div>';
+
+            Swal.fire({
+                title: title, html: html + footer, showCloseButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#ff6b35',
+                preConfirm: function() {
+                    var selected = $('.menu2-check:checked'); var qty = parseInt($('#m2-qty').val());
+                    if(mode === 'rice') {
+                        if(selected.length < 1 || selected.length > 4) { Swal.showValidationMessage('ต้องเลือกกับข้าว 1 ถึง 4 อย่าง'); return false; }
+                        var descList = []; var extraPrice = 0;
+                        selected.each(function(){ var idx = $(this).val(); descList.push(menuData.menu2[idx].name); extraPrice += parseInt(menuData.menu2[idx].priceRice); });
+                        var unitPrice = 35 + extraPrice; var descExtra = "";
+                        if($('#m2-takeaway').is(':checked')) { unitPrice += 5; descExtra = " (กลับบ้าน)"; }
+                        return { id: 'RICE-'+Date.now(), name: 'ข้าวราดแกง' + descExtra, desc: descList.join(', '), price: unitPrice, qty: qty, total: unitPrice * qty };
+                    } else {
+                        if(selected.length === 0) { Swal.showValidationMessage('กรุณาเลือกกับข้าว'); return false; }
+                        var idx = selected.val(); var item = menuData.menu2[idx];
+                        return { id: item.id, name: item.name, desc: 'กับข้าว (ถุง)', price: item.priceDish, qty: qty, total: item.priceDish * qty };
+                    }
+                }
+            }).then(function(res) { if(res.isConfirmed) addToCart(res.value); });
+        }
+
+        function stepQty(val) { var el = $('#sel-qty'); var current = parseInt(el.val()); if(current + val >= 1) el.val(current + val); }
+        function addToCart(item) { cart.push(item); updateCartBadge(); Swal.fire({ icon: 'success', title: 'เพิ่มลงตะกร้าแล้ว', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 }); }
+        function updateCartBadge() { if(cart.length > 0) { $('#cart-btn').removeClass('hidden'); $('#cart-count').text(cart.length); } else { $('#cart-btn').addClass('hidden'); } }
+        function showCart() { if(cart.length === 0) return; renderCartModal(); }
+
+        function renderCartModal() {
+            var total = 0; var html = '<ul class="list-group mb-3 text-start">';
+            cart.forEach(function(item, index) {
+                total += item.price * item.qty;
+                html += '<li class="list-group-item d-flex justify-content-between lh-sm align-items-center"><div style="width: 50%;"><h6 class="my-0 text-truncate">'+item.name+'</h6><small class="text-muted" style="font-size:0.8rem">'+item.desc+'</small></div><div class="d-flex align-items-center bg-light rounded px-1"><button class="btn btn-sm text-secondary" onclick="updateCartItem('+index+', -1)">-</button><span class="mx-2 fw-bold" style="font-size:0.9rem">'+item.qty+'</span><button class="btn btn-sm text-secondary" onclick="updateCartItem('+index+', 1)">+</button></div><span class="text-dark fw-bold">'+(item.price * item.qty)+'.-</span></li>';
+            });
+            html += '<li class="list-group-item d-flex justify-content-between bg-light"><span>รวมทั้งหมด</span><strong class="text-danger fs-5">'+total+' บาท</strong></li></ul>';
+            html += '<div class="text-start mb-2"><label class="form-label small fw-bold text-muted"><i class="fas fa-pen"></i> รายละเอียดเพิ่มเติม (ถ้ามี)</label><textarea id="cart-note" class="form-control" rows="2" placeholder="เช่น ไม่ใส่ผัก, ขอช้อนส้อม, เผ็ดน้อย"></textarea></div>';
+            Swal.fire({ title: '🛒 ตะกร้าของฉัน', html: html, showCancelButton: true, showCloseButton: true, confirmButtonText: 'ยืนยันการสั่ง (Check Bill)', confirmButtonColor: '#27ae60', cancelButtonText: 'เลือกต่อ', width: 600, preConfirm: function() { return $('#cart-note').val(); } }).then(function(result) { if(result.isConfirmed) { var note = result.value; showPaymentQr(total, note); } });
+        }
+
+        function updateCartItem(index, change) {
+            var item = cart[index]; item.qty += change;
+            if(item.qty <= 0) {
+                Swal.fire({ title: 'ลบรายการนี้?', text: "ต้องการเอาออกจากตะกร้าใช่ไหม", icon: 'warning', showCancelButton: true, showCloseButton: true, confirmButtonText: 'ลบเลย', confirmButtonColor: '#d33', cancelButtonText: 'ยกเลิก' }).then(function(res) {
+                    if(res.isConfirmed) { cart.splice(index, 1); updateCartBadge(); if(cart.length > 0) renderCartModal(); else Swal.close(); } else { item.qty = 1; renderCartModal(); }
+                });
+            } else { renderCartModal(); }
+        }
+
+        function showPaymentQr(total, note) {
+            localStorage.setItem('bch_pending_order', JSON.stringify({ total: total, note: note, cart: cart }));
+            var amount = parseFloat(total).toFixed(2);
+            var qrUrl = 'https://promptpay.io/' + PROMPTPAY_ID + '/' + amount;
+            var html = '<div class="text-center"><div class="mb-2">ยอดชำระ: <strong class="text-danger fs-4">' + amount + '</strong> บาท</div><div class="border p-2 d-inline-block rounded bg-white shadow-sm mb-3"><img id="qr-image" src="https://tain6666.github.io/bch.github.io/food/PromptpayBCH.jpg" width="250" height="300" alt="PromptPay QR" onerror="this.onerror=null;this.src=\'https://placehold.co/250x250?text=Error+Loading+QR\';"></div><div class="d-grid gap-2 col-8 mx-auto mb-3"><button type="button" class="btn btn-outline-primary rounded-pill btn-sm" id="btn-dl-qr"><i class="fas fa-download"></i> กดค้างที่ QR เพื่อบันทึกรูป</button></div></div>';
+            
+            Swal.fire({ title: 'สแกนจ่ายเงิน', html: html, showCancelButton: true, confirmButtonText: 'โอนเงินแล้ว (ส่งออเดอร์)', confirmButtonColor: '#27ae60', cancelButtonText: 'ย้อนกลับ', allowOutsideClick: false, didOpen: function() { $('#btn-dl-qr').on('click', function() { downloadQrImage(qrUrl); }); } }).then(function(result) {
+                if (result.isConfirmed) { submitOrderToSheet(total, note); } else { localStorage.removeItem('bch_pending_order'); renderCartModal(); }
+            });
+        }
+
+        // ฟังก์ชันดาวน์โหลด (ใช้ window.open สำหรับมือถือบางรุ่น หรือแสดง popup รูป)
+        function downloadQrImage(url) {
+            Swal.fire({
+                title: 'บันทึกรูปภาพ',
+                html: '<div class="mb-2">กดค้างที่รูปภาพด้านล่างแล้วเลือก "บันทึกรูปภาพ"</div><img src="'+url+'" style="width:100%; border:1px solid #ccc;">',
+                showCloseButton: true,
+                confirmButtonText: 'ปิด'
+            });
+        }
+
+        function submitOrderToSheet(total, note) {
+            Swal.fire({title: 'กำลังส่งออเดอร์...', text: 'กรุณารอสักครู่', allowOutsideClick: false, didOpen: function(){ Swal.showLoading(); } });
+            var orderData = { user: currentUser, cart: cart, total: total, note: note };
+            callApi('saveOrder', orderData).then(function(res){
+                if(res.status) {
+                    localStorage.removeItem('bch_pending_order'); cart = []; updateCartBadge();
+                    Swal.fire({ icon: 'success', title: 'สั่งอาหารสำเร็จ!', html: 'Order ID: ' + res.orderId + '<br>รับอาหารกรุณาแสดงหลักฐานชำระเงิน', confirmButtonColor: '#ff6b35', showCloseButton: true });
+                } else { Swal.fire({title: 'Error', text: res.msg, icon: 'error'}); }
+            }).catch(err => Swal.fire('Error', 'Connection Failed', 'error'));
+        }
+    </script>
+</body>
+</html>
