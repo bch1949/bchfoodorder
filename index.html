@@ -89,10 +89,9 @@
 
         // --- สะพานเชื่อมต่อไปยัง Google Apps Script ---
         function callApi(action, data) {
-            // ใช้ fetch ส่งข้อมูลแบบ POST ไปยัง Google Apps Script
             return fetch(SCRIPT_URL + "?action=" + action, {
                 method: 'POST',
-                body: JSON.stringify(data) // ส่งข้อมูลไปใน Body (แบบ JSON text)
+                body: JSON.stringify(data)
             }).then(function(response) {
                 return response.json();
             });
@@ -164,15 +163,66 @@
             callApi('getMenuData', {}).then(function(data){
                 menuData = data; Swal.close();
                 var html = '<div class="row g-3">';
+                // วนลูปเมนูจากฐานข้อมูล
                 menuData.menu1.forEach(function(item, index) {
                     html += '<div class="col-6 col-md-4"><div class="card h-100 food-card" onclick="selectMenu1('+index+')"><img src="'+item.img+'" class="card-img-top food-img" onerror="this.src=\'https://via.placeholder.com/150\'"><div class="card-body p-2 text-center"><h6 class="card-title fw-bold mb-0 text-dark">'+item.name+'</h6></div></div></div>';
                 });
+                
+                // +++++ เพิ่มกล่องเมนู "สั่งอิสระ" ไว้ต่อท้ายสุด +++++
+                html += `
+                    <div class="col-6 col-md-4">
+                        <div class="card h-100 food-card" onclick="selectMenu1('custom')" style="border: 2px dashed var(--primary-color);">
+                            <div class="card-body p-2 text-center d-flex flex-column justify-content-center align-items-center" style="min-height: 160px; background-color: #fff8f5;">
+                                <i class="fas fa-edit fa-3x mb-2" style="color: var(--primary-color);"></i>
+                                <h6 class="card-title fw-bold mb-0 text-dark">เมนูอื่นๆ</h6>
+                                <small class="text-danger mt-1">พิมพ์สั่งอิสระ</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
                 html += '</div>';
                 Swal.fire({title: '🍱 อาหารตามสั่ง', html: html, width: 800, showCloseButton: true, showConfirmButton: false, customClass: { popup: 'swal-wide' }});
             });
         }
 
         function selectMenu1(index) {
+            // +++++ จัดการกรณีเลือกลูกค้าเลือก "เมนูอิสระ" +++++
+            if (index === 'custom') {
+                var customPopupHtml = `
+                    <div class="text-start px-3">
+                        <div class="mb-2">
+                            <label class="fw-bold">ระบุเมนูอาหารที่ต้องการสั่ง</label>
+                            <textarea id="custom-menu-desc" class="form-control mt-1" rows="3" placeholder="เช่น ข้าวผัดกะเพราปลาหมึก ไข่ดาว ไม่เผ็ด"></textarea>
+                        </div>
+                        <div class="alert alert-warning py-2 small mb-3">
+                            <i class="fas fa-info-circle"></i> ราคาอาหาร 0 บาทไว้ก่อน สามารถสแกนจ่ายตามราคาจริงภายหลังได้
+                        </div>
+                        <div class="mt-3 text-center">
+                            <label class="fw-bold d-block mb-1">จำนวน</label>
+                            <div class="btn-group">
+                                <button class="btn btn-outline-secondary" onclick="stepQty(-1)">-</button>
+                                <input type="number" id="sel-qty" class="form-control text-center" value="1" readonly style="width: 60px;">
+                                <button class="btn btn-outline-secondary" onclick="stepQty(1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                Swal.fire({
+                    title: 'สั่งอาหารอื่นๆ', html: customPopupHtml, showCloseButton: true, confirmButtonText: 'ใส่ตะกร้า', confirmButtonColor: '#ff6b35',
+                    preConfirm: function() {
+                        var desc = $('#custom-menu-desc').val().trim();
+                        var qty = parseInt($('#sel-qty').val());
+                        if (!desc) { Swal.showValidationMessage('กรุณาพิมพ์เมนูอาหารที่ต้องการ'); return false; }
+                        return { id: 'CUSTOM-'+Date.now(), name: 'สั่งอิสระ (จ่ายทีหลัง)', desc: desc, price: 0, qty: qty, total: 0 };
+                    }
+                }).then(function(result) { if(result.isConfirmed) addToCart(result.value); });
+                
+                return; // หยุดการทำงานส่วนด้านล่าง
+            }
+
+            // --- โค้ดเดิมสำหรับเมนูปกติในฐานข้อมูล ---
             var item = menuData.menu1[index];
             var meatHtml = item.meats.map(function(m){ return '<option value="'+m.name+'|'+m.price+'">'+m.name+' ('+(m.price>0 ? '+'+m.price : 'ปกติ')+')</option>'; }).join('');
             var toppingHtml = item.toppings.map(function(t){ return '<div class="form-check"><input class="form-check-input topping-check" type="checkbox" value="'+t.name+'|'+t.price+'" id="top-'+t.name+'"><label class="form-check-label" for="top-'+t.name+'">'+t.name+' (+'+t.price+')</label></div>'; }).join('');
@@ -202,7 +252,7 @@
 
         function openMenu2() {
             var now = new Date(); var hour = now.getHours();
-            if (hour < 6 || hour >= 20) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 14:00 น.'}); }
+            if (hour < 6 || hour >= 14) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 14:00 น.'}); }
 
             Swal.showLoading();
             callApi('getMenuData', {}).then(function(data){
@@ -286,7 +336,7 @@
             });
         }
 
-        // ฟังก์ชันดาวน์โหลด (ใช้ window.open สำหรับมือถือบางรุ่น หรือแสดง popup รูป)
+        // ฟังก์ชันดาวน์โหลด
         function downloadQrImage(url) {
             Swal.fire({
                 title: 'บันทึกรูปภาพ',
