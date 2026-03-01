@@ -60,8 +60,26 @@
         <div id="app-section" class="hidden">
             <div class="text-center my-4"><h3 class="fw-bold" style="color: var(--text-color);">สวัสดี, <span id="user-display-name" style="color: var(--primary-color);">User</span> 👋</h3><p class="text-muted small">เลือกเมนูความอร่อยได้เลยครับ</p></div>
             <div class="row g-4 justify-content-center">
-                <div class="col-6 col-md-4"><div class="card menu-cat-card p-4 text-center h-100" onclick="openMenu1()"><div class="menu-cat-icon"><i class="fa-solid fa-kitchen-set fa-2x"></i></div><h5 class="fw-bold mb-1">อาหารตามสั่ง</h5><small class="text-muted">Cooked to Order</small></div></div>
-                <div class="col-6 col-md-4"><div class="card menu-cat-card p-4 text-center h-100" onclick="openMenu2()"><div class="menu-cat-icon" style="color: #00cec9; background: #e0fbfb;"><i class="fas fa-utensils fa-2x"></i></div><h5 class="fw-bold mb-1">ข้าวราดแกง</h5><small class="text-muted">Rice & Curry</small></div></div>
+                <div class="col-6 col-md-4">
+                    <div class="card menu-cat-card p-4 text-center h-100" onclick="openMenu1()">
+                        <div class="menu-cat-icon"><i class="fa-solid fa-kitchen-set fa-2x"></i></div>
+                        <h5 class="fw-bold mb-1">อาหารตามสั่ง</h5><small class="text-muted">Cooked to Order</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4">
+                    <div class="card menu-cat-card p-4 text-center h-100" onclick="openMenu2()">
+                        <div class="menu-cat-icon" style="color: #00cec9; background: #e0fbfb;"><i class="fas fa-utensils fa-2x"></i></div>
+                        <h5 class="fw-bold mb-1">ข้าวราดแกง</h5><small class="text-muted">Rice & Curry</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4">
+                    <div class="card menu-cat-card p-4 text-center h-100" onclick="openMenuToday()">
+                        <div class="menu-cat-icon" style="color: #e84393; background: #fd79a833;">
+                            <i class="fas fa-star fa-2x"></i>
+                        </div>
+                        <h5 class="fw-bold mb-1">เมนูพิเศษ</h5><small class="text-muted">Special Menu</small>
+                    </div>
+                </div>
             </div>
             <div class="text-center mt-5"><small class="text-muted">© 2026 BCH Food Ordering System</small><br><small class="text-muted">Thumrong Malaiwalee</small></div>
         </div>
@@ -73,12 +91,13 @@
 
     <script>
         // **********************************************************
-        // ⚠️ ใส่ลิงก์ Web App URL ที่ได้จากการ Deploy ตรงนี้ครับ ⚠️
+        // ⚠️ อย่าลืม Deploy Code.gs แล้วนำ URL มาใส่ตรงนี้ใหม่นะครับ ⚠️
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzLp6Unn3Af6lm-AYkdhN5JJmApndthcYqprh4_7daG-ktNxgrVVVie8_28PDUVwwqEVw/exec"; 
         // **********************************************************
 
         var currentUser = null;
         var menuData = { menu1: [], menu2: [] };
+        var menuTodayList = []; // ตัวแปรเก็บเมนูพิเศษ
         var cart = [];
         var PROMPTPAY_ID = "0107537000017";
 
@@ -87,14 +106,10 @@
             if(storedUser) { currentUser = JSON.parse(storedUser); showApp(); }
         });
 
-        // --- สะพานเชื่อมต่อไปยัง Google Apps Script ---
         function callApi(action, data) {
             return fetch(SCRIPT_URL + "?action=" + action, {
-                method: 'POST',
-                body: JSON.stringify(data)
-            }).then(function(response) {
-                return response.json();
-            });
+                method: 'POST', body: JSON.stringify(data)
+            }).then(function(response) { return response.json(); });
         }
 
         function toggleAuth(mode) {
@@ -103,18 +118,14 @@
         }
 
         function doRegister() {
-            var name = $('#reg-name').val();
-            var phone = $('#reg-phone').val();
+            var name = $('#reg-name').val(); var phone = $('#reg-phone').val();
             if(!name || !phone) return Swal.fire({title: 'ข้อมูลไม่ครบ', text: 'กรุณากรอกข้อมูลให้ครบถ้วน', icon: 'warning', showCloseButton: true});
             if(phone.length !== 10) return Swal.fire({title: 'รูปแบบไม่ถูกต้อง', text: 'กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก', icon: 'warning', showCloseButton: true});
-
             Swal.showLoading();
             callApi('registerUser', {name: name, phone: phone}).then(function(res){
                 Swal.close();
-                if(res.status) {
-                    Swal.fire({icon: 'success', title: 'ลงทะเบียนสำเร็จ', timer: 1500, showConfirmButton: false});
-                    loginSuccess(res.name, res.phone);
-                } else { Swal.fire({title: 'เกิดข้อผิดพลาด', text: res.msg, icon: 'error'}); }
+                if(res.status) { Swal.fire({icon: 'success', title: 'ลงทะเบียนสำเร็จ', timer: 1500, showConfirmButton: false}); loginSuccess(res.name, res.phone); } 
+                else { Swal.fire({title: 'เกิดข้อผิดพลาด', text: res.msg, icon: 'error'}); }
             }).catch(err => Swal.fire('Error', 'Connection Failed', 'error'));
         }
 
@@ -122,7 +133,6 @@
             var phone = $('#login-phone').val();
             if(!phone) return Swal.fire({title: 'ข้อมูลไม่ครบ', text: 'กรุณากรอกเบอร์โทรศัพท์', icon: 'warning'});
             if(phone.length !== 10) return Swal.fire({title: 'รูปแบบไม่ถูกต้อง', text: 'กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก', icon: 'warning'});
-
             Swal.showLoading();
             callApi('loginUser', {phone: phone}).then(function(res){
                 Swal.close();
@@ -157,79 +167,26 @@
 
         function openMenu1() {
             var now = new Date(); var hour = now.getHours();
-            if (hour < 6 || hour >= 18) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 18:00 น.'}); }
-
+            if (hour < 6 || hour >= 23) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 16:00 น.'}); }
             Swal.showLoading();
             callApi('getMenuData', {}).then(function(data){
                 menuData = data; Swal.close();
                 var html = '<div class="row g-3">';
-                // วนลูปเมนูจากฐานข้อมูล
                 menuData.menu1.forEach(function(item, index) {
                     html += '<div class="col-6 col-md-4"><div class="card h-100 food-card" onclick="selectMenu1('+index+')"><img src="'+item.img+'" class="card-img-top food-img" onerror="this.src=\'https://via.placeholder.com/150\'"><div class="card-body p-2 text-center"><h6 class="card-title fw-bold mb-0 text-dark">'+item.name+'</h6></div></div></div>';
                 });
-                
-                // +++++ เพิ่มกล่องเมนู "สั่งอิสระ" ไว้ต่อท้ายสุด +++++
-                html += `
-                    <div class="col-6 col-md-4">
-                        <div class="card h-100 food-card" onclick="selectMenu1('custom')" style="border: 2px dashed var(--primary-color);">
-                            <div class="card-body p-2 text-center d-flex flex-column justify-content-center align-items-center" style="min-height: 160px; background-color: #fff8f5;">
-                                <i class="fas fa-edit fa-3x mb-2" style="color: var(--primary-color);"></i>
-                                <h6 class="card-title fw-bold mb-0 text-dark">เมนูอื่นๆ</h6>
-                                <small class="text-danger mt-1">พิมพ์สั่งอิสระ</small>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
                 html += '</div>';
                 Swal.fire({title: '🍱 อาหารตามสั่ง', html: html, width: 800, showCloseButton: true, showConfirmButton: false, customClass: { popup: 'swal-wide' }});
             });
         }
 
         function selectMenu1(index) {
-            // +++++ จัดการกรณีเลือกลูกค้าเลือก "เมนูอิสระ" +++++
-            if (index === 'custom') {
-                var customPopupHtml = `
-                    <div class="text-start px-3">
-                        <div class="mb-2">
-                            <label class="fw-bold">ระบุเมนูอาหารที่ต้องการสั่ง</label>
-                            <textarea id="custom-menu-desc" class="form-control mt-1" rows="3" placeholder="เช่น ข้าวผัดกะเพราปลาหมึก ไข่ดาว ไม่เผ็ด"></textarea>
-                        </div>
-                        <div class="alert alert-warning py-2 small mb-3">
-                            <i class="fas fa-info-circle"></i> ราคาอาหาร 0 บาทไว้ก่อน สามารถสแกนจ่ายตามราคาจริงภายหลังได้
-                        </div>
-                        <div class="mt-3 text-center">
-                            <label class="fw-bold d-block mb-1">จำนวน</label>
-                            <div class="btn-group">
-                                <button class="btn btn-outline-secondary" onclick="stepQty(-1)">-</button>
-                                <input type="number" id="sel-qty" class="form-control text-center" value="1" readonly style="width: 60px;">
-                                <button class="btn btn-outline-secondary" onclick="stepQty(1)">+</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                Swal.fire({
-                    title: 'สั่งอาหารอื่นๆ', html: customPopupHtml, showCloseButton: true, confirmButtonText: 'ใส่ตะกร้า', confirmButtonColor: '#ff6b35',
-                    preConfirm: function() {
-                        var desc = $('#custom-menu-desc').val().trim();
-                        var qty = parseInt($('#sel-qty').val());
-                        if (!desc) { Swal.showValidationMessage('กรุณาพิมพ์เมนูอาหารที่ต้องการ'); return false; }
-                        return { id: 'CUSTOM-'+Date.now(), name: 'สั่งอิสระ (จ่ายทีหลัง)', desc: desc, price: 0, qty: qty, total: 0 };
-                    }
-                }).then(function(result) { if(result.isConfirmed) addToCart(result.value); });
-                
-                return; // หยุดการทำงานส่วนด้านล่าง
-            }
-
-            // --- โค้ดเดิมสำหรับเมนูปกติในฐานข้อมูล ---
             var item = menuData.menu1[index];
             var meatHtml = item.meats.map(function(m){ return '<option value="'+m.name+'|'+m.price+'">'+m.name+' ('+(m.price>0 ? '+'+m.price : 'ปกติ')+')</option>'; }).join('');
             var toppingHtml = item.toppings.map(function(t){ return '<div class="form-check"><input class="form-check-input topping-check" type="checkbox" value="'+t.name+'|'+t.price+'" id="top-'+t.name+'"><label class="form-check-label" for="top-'+t.name+'">'+t.name+' (+'+t.price+')</label></div>'; }).join('');
-            
             var validTypes = item.types.filter(function(t) { return t.trim() !== ""; });
             var typeBlock = validTypes.length > 0 ? '<div class="mb-2"><label class="fw-bold">ประเภท</label><select id="sel-type" class="form-select">'+validTypes.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('')+'</select></div>' : '<input type="hidden" id="sel-type" value="">';
-
+            
             var popupHtml = '<div class="text-start px-3"><div class="mb-2"><label class="fw-bold">เนื้อสัตว์</label><select id="sel-meat" class="form-select">'+meatHtml+'</select></div>' + typeBlock + '<div class="mb-2"><label class="fw-bold">Topping</label>'+toppingHtml+'</div><div class="form-check mt-3 p-2 rounded" style="background-color: #ffeaa7;"><input class="form-check-input" type="checkbox" id="takeaway-opt"><label class="form-check-label fw-bold text-dark" for="takeaway-opt">ใส่กล่อง/กลับบ้าน (+5 บาท)</label></div><div class="mt-3 text-center"><label class="fw-bold d-block mb-1">จำนวน</label><div class="btn-group"><button class="btn btn-outline-secondary" onclick="stepQty(-1)">-</button><input type="number" id="sel-qty" class="form-control text-center" value="1" readonly style="width: 60px;"><button class="btn btn-outline-secondary" onclick="stepQty(1)">+</button></div></div></div>';
 
             Swal.fire({
@@ -252,8 +209,7 @@
 
         function openMenu2() {
             var now = new Date(); var hour = now.getHours();
-            if (hour < 6 || hour >= 14) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 14:00 น.'}); }
-
+            if (hour < 6 || hour >= 23) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 14:00 น.'}); }
             Swal.showLoading();
             callApi('getMenuData', {}).then(function(data){
                 menuData = data; Swal.close();
@@ -279,7 +235,6 @@
             var footer = mode === 'rice' ? '<small class="text-danger">*เลือก 1-4 อย่าง (ราคาเริ่ม 40.-)</small>' : '';
             if (mode === 'rice') { html += '<div class="form-check mt-3 text-start p-2 rounded" style="background-color: #ffeaa7;"><input class="form-check-input" type="checkbox" id="m2-takeaway"><label class="form-check-label fw-bold text-dark" for="m2-takeaway">ใส่กล่อง/กลับบ้าน (+5 บาท)</label></div>'; }
             html += '<div class="mt-3 text-center"><label class="fw-bold">จำนวน '+(mode === 'rice'?'จาน':'ถุง')+'</label><br><input type="number" id="m2-qty" class="form-control d-inline-block text-center mt-1" value="1" min="1" style="width:100px;"></div>';
-
             Swal.fire({
                 title: title, html: html + footer, showCloseButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#ff6b35',
                 preConfirm: function() {
@@ -298,6 +253,49 @@
                     }
                 }
             }).then(function(res) { if(res.isConfirmed) addToCart(res.value); });
+        }
+
+        // +++++ ฟังก์ชันใหม่: เปิดเมนูพิเศษ +++++
+        function openMenuToday() {
+            var now = new Date(); var hour = now.getHours();
+            if (hour < 6 || hour >= 23) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 14:00 น.'}); }
+
+            Swal.showLoading();
+            callApi('getMenuToday', {}).then(function(data){
+                menuTodayList = data.items;
+                Swal.close();
+                var html = '<div class="row g-3">';
+                menuTodayList.forEach(function(item, index) {
+                    html += '<div class="col-6 col-md-4"><div class="card h-100 food-card" onclick="selectMenuToday('+index+')">' +
+                            '<img src="'+item.img+'" class="card-img-top food-img" onerror="this.src=\'https://via.placeholder.com/150\'">' +
+                            '<div class="card-body p-2 text-center"><h6 class="card-title fw-bold mb-0 text-dark">'+item.name+'</h6>' +
+                            '<span class="badge bg-danger rounded-pill mt-1">'+item.price+'.-</span></div></div></div>';
+                });
+                html += '</div>';
+                Swal.fire({title: '⭐ เมนูพิเศษประจำวัน', html: html, width: 800, showCloseButton: true, showConfirmButton: false, customClass: { popup: 'swal-wide' }});
+            });
+        }
+
+        // +++++ ฟังก์ชันใหม่: เลือกเมนูพิเศษ +++++
+        function selectMenuToday(index) {
+            var item = menuTodayList[index];
+            var popupHtml = '<div class="text-center">' +
+                '<img src="'+item.img+'" style="height:150px; object-fit:cover; border-radius:10px; margin-bottom:10px;">' +
+                '<h5 class="fw-bold">'+item.name+'</h5>' +
+                '<h4 class="text-danger my-2">'+item.price+' บาท</h4>' +
+                '<div class="d-flex justify-content-center align-items-center mt-3 gap-2">' +
+                '<button class="btn btn-outline-secondary" onclick="stepQty(-1)">-</button>' +
+                '<input type="number" id="sel-qty" class="form-control text-center" value="1" readonly style="width:60px;">' +
+                '<button class="btn btn-outline-secondary" onclick="stepQty(1)">+</button>' +
+                '</div></div>';
+
+            Swal.fire({
+                html: popupHtml, showCloseButton: true, confirmButtonText: 'ใส่ตะกร้า', confirmButtonColor: '#ff6b35',
+                preConfirm: function() {
+                    var qty = parseInt($('#sel-qty').val());
+                    return { id: item.id, name: item.name, desc: 'เมนูพิเศษ', price: item.price, qty: qty, total: item.price * qty };
+                }
+            }).then(function(res){ if(res.isConfirmed) addToCart(res.value); });
         }
 
         function stepQty(val) { var el = $('#sel-qty'); var current = parseInt(el.val()); if(current + val >= 1) el.val(current + val); }
@@ -336,7 +334,6 @@
             });
         }
 
-        // ฟังก์ชันดาวน์โหลด
         function downloadQrImage(url) {
             Swal.fire({
                 title: 'บันทึกรูปภาพ',
