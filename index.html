@@ -167,7 +167,7 @@
 
         function openMenu1() {
             var now = new Date(); var hour = now.getHours();
-            if (hour < 6 || hour >= 23) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 16:00 น.'}); }
+            if (hour < 6 || hour >= 16) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 16:00 น.'}); }
             Swal.showLoading();
             callApi('getMenuData', {}).then(function(data){
                 menuData = data; Swal.close();
@@ -353,7 +353,7 @@
             localStorage.setItem('bch_pending_order', JSON.stringify({ total: total, note: note, cart: cart }));
             var amount = parseFloat(total).toFixed(2);
             var qrUrl = 'https://promptpay.io/' + PROMPTPAY_ID + '/' + amount;
-            var html = '<div class="text-center"><div class="mb-2">ยอดชำระ: <strong class="text-danger fs-4">' + amount + '</strong> บาท</div><div class="border p-2 d-inline-block rounded bg-white shadow-sm mb-3"><img id="qr-image" src="https://tain6666.github.io/bch.github.io/pic/QRPAYBCH.jpg" width="250" height="300" alt="PromptPay QR" onerror="this.onerror=null;this.src=\'https://placehold.co/250x250?text=Error+Loading+QR\';"></div><div class="d-grid gap-2 col-8 mx-auto mb-3"><button type="button" class="btn btn-outline-primary rounded-pill btn-sm" id="btn-dl-qr"><i class="fas fa-download"></i> กดค้างที่ QR เพื่อบันทึกรูป</button></div></div>';
+            var html = '<div class="text-center"><div class="mb-2">ยอดชำระ: <strong class="text-danger fs-4">' + amount + '</strong> บาท</div><div class="border p-2 d-inline-block rounded bg-white shadow-sm mb-3"><img id="qr-image" src="https://tain6666.github.io/bch.github.io/pic/QRPAYBCH.jpg" width="250" height="300" alt="PromptPay QR" onerror="this.onerror=null;this.src=\'https://placehold.co/250x250?text=Error+Loading+QR\';"></div><div class="d-grid gap-2 col-8 mx-auto mb-3"><button type="button" class="btn btn-outline-primary rounded-pill btn-sm" id="btn-dl-qr"><i class="fas fa-download"></i> กดค้างที่ QR เพื่อบันทึกรูปหรือจับภาพหน้าจอ</button></div></div>';
             
             Swal.fire({ title: 'สแกนจ่ายเงิน', html: html, showCancelButton: true, confirmButtonText: 'โอนเงินแล้ว (ส่งออเดอร์)', confirmButtonColor: '#27ae60', cancelButtonText: 'ย้อนกลับ', allowOutsideClick: false, didOpen: function() { $('#btn-dl-qr').on('click', function() { downloadQrImage(qrUrl); }); } }).then(function(result) {
                 if (result.isConfirmed) { submitOrderToSheet(total, note); } else { localStorage.removeItem('bch_pending_order'); renderCartModal(); }
