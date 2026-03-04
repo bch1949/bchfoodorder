@@ -28,10 +28,15 @@
 </head>
 <body>
     <nav class="navbar navbar-custom sticky-top">
+        <nav class="navbar navbar-custom sticky-top">
         <div class="container">
-            <span class="navbar-brand brand-title"><i class="fas fa-utensils me-2"></i>BCH Food</span>
+            <div class="d-flex flex-column">
+                <span class="navbar-brand brand-title pb-0 mb-0"><i class="fas fa-utensils me-2"></i>BCH Food</span>
+                <small class="text-muted" style="font-size: 0.75rem; margin-top: -5px;">ติดตามอาหารหรือสอบถามเพิ่มเติม โทรภายใน 60120-1</small>
+            </div>
             <button id="nav-logout-btn" class="btn btn-sm btn-outline-danger rounded-pill hidden" onclick="logout()"><i class="fas fa-sign-out-alt"></i> ออกจากระบบ</button>
         </div>
+    </nav>
     </nav>
     <div id="cart-btn" class="cart-fab hidden" onclick="showCart()"><i class="fas fa-shopping-basket fa-lg"></i> <span id="cart-count">0</span> <small class="ms-1">รายการ</small></div>
     <div class="container mt-4">
