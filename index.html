@@ -167,7 +167,7 @@
 
         function openMenu1() {
             var now = new Date(); var hour = now.getHours();
-            if (hour < 6 || hour >= 16) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 16:00 น.'}); }
+            if (hour < 6 || hour >= 18) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 18:00 น.'}); }
             Swal.showLoading();
             callApi('getMenuData', {}).then(function(data){
                 menuData = data; Swal.close();
