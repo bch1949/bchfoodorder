@@ -183,7 +183,25 @@
         function selectMenu1(index) {
             // กรณีเลือกเมนู "สั่งอิสระ" (ถ้ามี logic นี้อยู่ก่อนหน้า ให้คงไว้เหมือนเดิม)
             if (index === 'custom') {
-                // ... (Logic ของ custom menu คงเดิมถ้ามี) ...
+                var customPopupHtml = `
+                    <div class="text-start px-3">
+                        <div class="mb-2">
+                            <label class="fw-bold">ระบุเมนูอาหารที่ต้องการสั่ง</label>
+                            <textarea id="custom-menu-desc" class="form-control mt-1" rows="3" placeholder="เช่น ข้าวผัดกะเพราปลาหมึก ไข่ดาว ไม่เผ็ด"></textarea>
+                        </div>
+                        <div class="alert alert-warning py-2 small mb-3">
+                            <i class="fas fa-info-circle"></i> ราคาอาหาร 0 บาทไว้ก่อน สามารถสแกนจ่ายตามราคาจริงภายหลังได้
+                        </div>
+                        <div class="mt-3 text-center">
+                            <label class="fw-bold d-block mb-1">จำนวน</label>
+                            <div class="btn-group">
+                                <button class="btn btn-outline-secondary" onclick="stepQty(-1)">-</button>
+                                <input type="number" id="sel-qty" class="form-control text-center" value="1" readonly style="width: 60px;">
+                                <button class="btn btn-outline-secondary" onclick="stepQty(1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
                 var customPopupHtml = '<div class="text-start px-3"><div class="mb-2"><label class="fw-bold">ระบุเมนูอาหารที่ต้องการสั่ง</label><textarea id="custom-menu-desc" class="form-control mt-1" rows="3" placeholder="เช่น ข้าวผัดกะเพราปลาหมึก ไข่ดาว ไม่เผ็ด"></textarea></div><div class="alert alert-warning py-2 small mb-3"><i class="fas fa-info-circle"></i> ราคาอาหาร 0 บาทไว้ก่อน สามารถสแกนจ่ายตามราคาจริงภายหลังได้</div><div class="mt-3 text-center"><label class="fw-bold d-block mb-1">จำนวน</label><div class="btn-group"><button class="btn btn-outline-secondary" onclick="stepQty(-1)">-</button><input type="number" id="sel-qty" class="form-control text-center" value="1" readonly style="width: 60px;"><button class="btn btn-outline-secondary" onclick="stepQty(1)">+</button></div></div></div>';
                 Swal.fire({
                     title: 'สั่งอาหารอื่นๆ', html: customPopupHtml, showCloseButton: true, confirmButtonText: 'ใส่ตะกร้า', confirmButtonColor: '#ff6b35',
