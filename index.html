@@ -93,7 +93,7 @@
                 </div>
             </div>
             
-            <div class="text-center mt-4 mb-2"><small class="text-muted">© 2026 BCH Food Ordering System V.2</small><br><small class="text-muted">Thumrong Malaiwalee</small></div>
+            <div class="text-center mt-4 mb-2"><small class="text-muted">© 2026 BCH Food Ordering System V2.1</small><br><small class="text-muted">Thumrong Malaiwalee</small></div>
         </div>
     </div>
 
@@ -183,7 +183,6 @@
             else { updateCartBadge(); }
         }
 
-        // +++++ ฟังก์ชันใหม่: เช็คออเดอร์ล่าสุด +++++
         function checkLatestOrder() {
             Swal.fire({title: 'กำลังตรวจสอบ...', text: 'กรุณารอสักครู่', allowOutsideClick: false, didOpen: function(){ Swal.showLoading(); }});
             
@@ -191,7 +190,6 @@
                 Swal.close();
                 if (res.status) {
                     var o = res.data;
-                    // แปลง \n ในรายการและหมายเหตุ เป็น <br> เพื่อขึ้นบรรทัดใหม่
                     var detailsFormatted = o.details.replace(/\n/g, '<br>');
                     var noteFormatted = o.note ? o.note.replace(/\n/g, '<br>') : '-';
                     
@@ -239,7 +237,7 @@
         // ------------------ อาหารตามสั่ง ------------------
         function openMenu1() {
             var now = new Date(); var hour = now.getHours();
-            if (hour < 6 || hour >= 23) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 18:00 น.'}); }
+            if (hour < 6 || hour >= 24) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 18:00 น.'}); }
             Swal.showLoading();
             callApi('getMenuData', {}).then(function(data){
                 menuData = data; Swal.close();
@@ -273,7 +271,7 @@
                             <textarea id="custom-menu-desc" class="form-control mt-1" rows="3" placeholder="เช่น ข้าวผัดกะเพราปลาหมึก ไข่ดาว ไม่เผ็ด"></textarea>
                         </div>
                         <div class="alert alert-warning py-2 small mb-3">
-                            <i class="fas fa-info-circle"></i> ราคาอาหาร 0 บาทไว้ก่อน สามารถสแกนจ่ายตามราคาจริงภายหลังได้ หรือโทรสอบถามอาหารและราคาได้ที่เบอร์ภายใน 60120-1
+                            <i class="fas fa-info-circle"></i> ราคาอาหาร 0 บาทไว้ก่อน สามารถสแกนจ่ายตามราคาจริงภายหลังได้
                         </div>
                         <div class="mt-3 text-center">
                             <label class="fw-bold d-block mb-1">จำนวน</label>
@@ -292,7 +290,8 @@
                         var desc = $('#custom-menu-desc').val().trim();
                         var qty = parseInt($('#sel-qty').val());
                         if (!desc) { Swal.showValidationMessage('กรุณาพิมพ์เมนูอาหารที่ต้องการ'); return false; }
-                        return { id: 'CUSTOM-'+Date.now(), name: 'สั่งอิสระ (จ่ายทีหลัง)', desc: desc, price: 0, qty: qty, total: 0 };
+                        // ส่งค่าโภชนาการเป็น 0 สำหรับเมนูอิสระ
+                        return { id: 'CUSTOM-'+Date.now(), name: 'สั่งอิสระ (จ่ายทีหลัง)', desc: desc, price: 0, qty: qty, total: 0, kcal: 0, protein: 0, sodium: 0 };
                     }
                 }).then(function(result) { if(result.isConfirmed) addToCart(result.value); });
                 
@@ -300,11 +299,14 @@
             }
 
             var item = menuData.menu1[index];
-            var meatHtml = item.meats.map(function(m){ return '<option value="'+m.name+'|'+m.price+'">'+m.name+' ('+(m.price>0 ? '+'+m.price : 'ปกติ')+')</option>'; }).join('');
-            var toppingHtml = item.toppings.map(function(t){ return '<div class="form-check"><input class="form-check-input topping-check" type="checkbox" value="'+t.name+'|'+t.price+'" id="top-'+t.name+'"><label class="form-check-label" for="top-'+t.name+'">'+t.name+' (+'+t.price+')</label></div>'; }).join('');
+            
+            // นำค่า kcal, protein, sodium มาซ่อนไว้ใน value ของ option
+            var meatHtml = item.meats.map(function(m){ return '<option value="'+m.name+'|'+m.price+'|'+m.kcal+'|'+m.protein+'|'+m.sodium+'">'+m.name+' ('+(m.price>0 ? '+'+m.price : 'ปกติ')+')</option>'; }).join('');
+            var toppingHtml = item.toppings.map(function(t){ return '<div class="form-check"><input class="form-check-input topping-check" type="checkbox" value="'+t.name+'|'+t.price+'|'+t.kcal+'|'+t.protein+'|'+t.sodium+'" id="top-'+t.name+'"><label class="form-check-label" for="top-'+t.name+'">'+t.name+' (+'+t.price+')</label></div>'; }).join('');
+            
             var validTypes = item.types.filter(function(t) { return t.trim() !== ""; });
             var typeBlock = validTypes.length > 0 ? '<div class="mb-2"><label class="fw-bold">ประเภท</label><select id="sel-type" class="form-select">'+validTypes.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('')+'</select></div>' : '<input type="hidden" id="sel-type" value="">';
-            
+
             var popupHtml = '<div class="text-start px-3"><div class="mb-2"><label class="fw-bold">เนื้อสัตว์</label><select id="sel-meat" class="form-select">'+meatHtml+'</select></div>' + typeBlock + '<div class="mb-2"><label class="fw-bold">Topping</label>'+toppingHtml+'</div><div class="mt-3 text-center"><label class="fw-bold d-block mb-1">จำนวน</label><div class="btn-group"><button class="btn btn-outline-secondary" onclick="stepQty(-1)">-</button><input type="number" id="sel-qty" class="form-control text-center" value="1" readonly style="width: 60px;"><button class="btn btn-outline-secondary" onclick="stepQty(1)">+</button></div></div></div>';
 
             Swal.fire({
@@ -313,23 +315,58 @@
                     var meat = $('#sel-meat').val().split('|');
                     var type = $('#sel-type').val();
                     var qty = parseInt($('#sel-qty').val());
-                    var toppingPrice = 0; var toppingDesc = [];
-                    $('.topping-check:checked').each(function() { var t = $(this).val().split('|'); toppingDesc.push(t[0]); toppingPrice += parseInt(t[1]); });
+                    
+                    var toppingPrice = 0, toppingKcal = 0, toppingPro = 0, toppingNa = 0; 
+                    var toppingDesc = [];
+                    
+                    $('.topping-check:checked').each(function() { 
+                        var t = $(this).val().split('|'); 
+                        toppingDesc.push(t[0]); 
+                        toppingPrice += parseInt(t[1]); 
+                        toppingKcal += parseInt(t[2]);
+                        toppingPro += parseInt(t[3]);
+                        toppingNa += parseInt(t[4]);
+                    });
+                    
                     var unitPrice = parseInt(meat[1]) + toppingPrice;
+                    var totalKcal = parseInt(meat[2]) + toppingKcal;
+                    var totalPro = parseInt(meat[3]) + toppingPro;
+                    var totalNa = parseInt(meat[4]) + toppingNa;
+
                     var typeDesc = type ? ', ' + type : '';
                     var itemDescription = meat[0] + typeDesc + (toppingDesc.length > 0 ? ' + ' + toppingDesc.join(',') : '');
-                    return { id: item.id, name: item.name, desc: itemDescription, price: unitPrice, qty: qty, total: unitPrice * qty };
+                    
+                    return { 
+                        id: item.id, name: item.name, desc: itemDescription, 
+                        price: unitPrice, qty: qty, total: unitPrice * qty,
+                        kcal: totalKcal, protein: totalPro, sodium: totalNa
+                    };
                 }
             }).then(function(result) { if(result.isConfirmed) addToCart(result.value); });
         }
 
         // ------------------ ข้าวราดแกง ------------------
         function openMenu2() {
-            var now = new Date(); var hour = now.getHours();
-            if (hour < 6 || hour >= 14) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 14:00 น.'}); }
+            var now = new Date(); var hour = now.getHours(); var dayOfWeek = now.getDay();
+            
+            // --- 1. เช็ควันเสาร์-อาทิตย์ ---
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                return Swal.fire({icon: 'warning', title: 'ปิดบริการ', text: 'เปิดให้บริการวันจันทร์-ศุกร์ ครับ'});
+            }
+
+            // --- 2. เช็คเวลา ---
+            if (hour < 6 || hour >= 24) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 14:00 น.'}); }
+            
             Swal.showLoading();
             callApi('getMenuData', {}).then(function(data){
-                menuData = data; Swal.close();
+                menuData = data; 
+                Swal.close();
+
+                // --- 3. เช็คอาหารหมด ---
+                if (!menuData.menu2 || menuData.menu2.length === 0) {
+                    return Swal.fire({icon: 'info', title: 'ขออภัย', text: 'วันนี้อาหารหมดแล้วค่ะ'});
+                }
+
                 Swal.fire({
                     title: 'โปรดเลือกรูปแบบ', icon: 'info', showDenyButton: true, showCloseButton: true, confirmButtonText: 'ราดข้าว (กล่อง)', denyButtonText: 'เป็นกับข้าว (ถุง)', confirmButtonColor: '#ff6b35', denyButtonColor: '#0984e3'
                 }).then(function(result) {
@@ -350,22 +387,57 @@
             html += '</div>';
             var title = mode === 'rice' ? 'เลือกกับข้าว (ราดข้าว)' : 'เลือกกับข้าว (ใส่ถุง)';
             var footer = mode === 'rice' ? '<small class="text-danger">*เลือก 1-4 อย่าง (ราคาเริ่ม 45.-)</small>' : '';
-            html += '<div class="mt-3 text-center"><label class="fw-bold">จำนวน '+(mode === 'rice'?'จาน':'ถุง')+'</label><br><input type="number" id="m2-qty" class="form-control d-inline-block text-center mt-1" value="1" min="1" style="width:100px;"></div>';
+            html += '<div class="mt-3 text-center"><label class="fw-bold">จำนวน '+(mode === 'rice'?'กล่อง':'ถุง')+'</label><br><input type="number" id="m2-qty" class="form-control d-inline-block text-center mt-1" value="1" min="1" style="width:100px;"></div>';
 
             Swal.fire({
                 title: title, html: html + footer, showCloseButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#ff6b35',
                 preConfirm: function() {
-                    var selected = $('.menu2-check:checked'); var qty = parseInt($('#m2-qty').val());
+                    var selected = $('.menu2-check:checked'); 
+                    var qty = parseInt($('#m2-qty').val());
+                    
                     if(mode === 'rice') {
                         if(selected.length < 1 || selected.length > 4) { Swal.showValidationMessage('ต้องเลือกกับข้าว 1 ถึง 4 อย่าง'); return false; }
-                        var descList = []; var extraPrice = 0;
-                        selected.each(function(){ var idx = $(this).val(); descList.push(menuData.menu2[idx].name); extraPrice += parseInt(menuData.menu2[idx].priceRice); });
-                        var unitPrice = 40 + extraPrice; 
-                        return { id: 'RICE-'+Date.now(), name: 'ข้าวราดแกง', desc: descList.join(', '), price: unitPrice, qty: qty, total: unitPrice * qty };
+                        var descList = []; 
+                        var extraPrice = 0;
+                        
+                        // ค่าสารอาหารตั้งต้นของ "ข้าวสวย 1 ทัพพี"
+                        var totalKcal = 200; 
+                        var totalPro = 4;
+                        var totalNa = 5;
+
+                        selected.each(function(){ 
+                            var idx = $(this).val(); 
+                            var item = menuData.menu2[idx];
+                            descList.push(item.name); 
+                            extraPrice += parseInt(item.priceRice); 
+                            // บวกสะสมสารอาหารของกับข้าวแต่ละอย่าง
+                            totalKcal += item.kcal || 0;
+                            totalPro += item.protein || 0;
+                            totalNa += item.sodium || 0;
+                        });
+                        
+                        var unitPrice = 40 + extraPrice;                       
+                        return { 
+                            id: 'RICE-'+Date.now(), name: 'ข้าวราดแกง', desc: descList.join(', '), 
+                            price: unitPrice, qty: qty, total: unitPrice * qty,
+                            kcal: totalKcal, protein: totalPro, sodium: totalNa // ส่งเข้าตะกร้า
+                        };
                     } else {
+                        // กรณีเป็นกับข้าว (ตักใส่ถุง)
                         if(selected.length === 0) { Swal.showValidationMessage('กรุณาเลือกกับข้าว'); return false; }
-                        var idx = selected.val(); var item = menuData.menu2[idx];
-                        return { id: item.id, name: item.name, desc: 'กับข้าว (ถุง)', price: item.priceDish, qty: qty, total: item.priceDish * qty };
+                        var idx = selected.val(); 
+                        var item = menuData.menu2[idx];
+                        
+                        // ถุงปริมาณเยอะกว่าราดข้าว เลยคูณสารอาหาร 2 เท่า
+                        var dishKcal = Math.round((item.kcal || 0) * 2);
+                        var dishPro = Math.round((item.protein || 0) * 2);
+                        var dishNa = Math.round((item.sodium || 0) * 2);
+
+                        return { 
+                            id: item.id, name: item.name, desc: 'กับข้าว (ถุง)', 
+                            price: item.priceDish, qty: qty, total: item.priceDish * qty,
+                            kcal: dishKcal, protein: dishPro, sodium: dishNa // ส่งเข้าตะกร้า
+                        };
                     }
                 }
             }).then(function(res) { if(res.isConfirmed) addToCart(res.value); });
@@ -373,13 +445,26 @@
 
         // ------------------ เมนูพิเศษ ------------------
         function openMenuToday() {
-            var now = new Date(); var hour = now.getHours();
-            if (hour < 6 || hour >= 12) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 12:00 น.'}); }
+            var now = new Date(); var hour = now.getHours(); var dayOfWeek = now.getDay();
+            
+            // --- 1. เช็ควันเสาร์-อาทิตย์ ---
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                return Swal.fire({icon: 'warning', title: 'ปิดบริการ', text: 'เปิดให้บริการวันจันทร์-ศุกร์ ครับ'});
+            }
+
+            // --- 2. เช็คเวลา ---
+            if (hour < 6 || hour >= 24) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 12:00 น.'}); }
 
             Swal.showLoading();
             callApi('getMenuToday', {}).then(function(data){
                 menuTodayList = data.items;
                 Swal.close();
+                
+                // --- 3. เช็คอาหารหมด ---
+                if (!menuTodayList || menuTodayList.length === 0) {
+                    return Swal.fire({icon: 'info', title: 'ขออภัย', text: 'วันนี้อาหารหมดแล้วค่ะ'});
+                }
+
                 var html = '<div class="row g-3">';
                 menuTodayList.forEach(function(item, index) {
                     html += '<div class="col-6 col-md-4"><div class="card h-100 food-card" onclick="selectMenuToday('+index+')"><img src="'+item.img+'" class="card-img-top food-img" onerror="this.src=\'https://via.placeholder.com/150\'"><div class="card-body p-2 text-center"><h6 class="card-title fw-bold mb-0 text-dark">'+item.name+'</h6><span class="badge bg-danger rounded-pill mt-1">'+item.price+'.-</span></div></div></div>';
@@ -389,15 +474,47 @@
             });
         }
 
+        // +++++ ฟังก์ชัน: เลือกเมนูพิเศษ (แสดงโภชนาการ) +++++
         function selectMenuToday(index) {
             var item = menuTodayList[index];
-            var popupHtml = '<div class="text-center"><img src="'+item.img+'" style="height:150px; object-fit:cover; border-radius:10px; margin-bottom:10px;"><h5 class="fw-bold">'+item.name+'</h5><h4 class="text-danger my-2">'+item.price+' บาท</h4><div class="d-flex justify-content-center align-items-center mt-3 gap-2"><button class="btn btn-outline-secondary" onclick="stepQty(-1)">-</button><input type="number" id="sel-qty" class="form-control text-center" value="1" readonly style="width:60px;"><button class="btn btn-outline-secondary" onclick="stepQty(1)">+</button></div></div>';
+            
+            // แสดง Badge โภชนาการ (ถ้ามี)
+            var nutritionBadge = '';
+            if (item.kcal > 0 || item.protein > 0 || item.sodium > 0) {
+                nutritionBadge = '<div class="mb-3" style="font-size: 0.85rem;">' +
+                    '<span class="badge bg-warning text-dark me-1"><i class="fas fa-fire"></i> '+item.kcal+' kcal</span>' +
+                    '<span class="badge bg-info text-dark me-1"><i class="fas fa-drumstick-bite"></i> Pro '+item.protein+'g</span>' +
+                    '<span class="badge bg-secondary"><i class="fas fa-salt"></i> Na '+item.sodium+'mg</span>' +
+                '</div>';
+            }
+
+            var popupHtml = '<div class="text-center">' +
+                '<img src="'+item.img+'" style="height:150px; object-fit:cover; border-radius:10px; margin-bottom:10px;">' +
+                '<h5 class="fw-bold">'+item.name+'</h5>' +
+                '<h4 class="text-danger my-2">'+item.price+' บาท</h4>' +
+                nutritionBadge + // แทรกป้ายโภชนาการตรงนี้
+                '<div class="d-flex justify-content-center align-items-center mt-3 gap-2">' +
+                '<button class="btn btn-outline-secondary" onclick="stepQty(-1)">-</button>' +
+                '<input type="number" id="sel-qty" class="form-control text-center" value="1" readonly style="width:60px;">' +
+                '<button class="btn btn-outline-secondary" onclick="stepQty(1)">+</button>' +
+                '</div></div>';
 
             Swal.fire({
                 html: popupHtml, showCloseButton: true, confirmButtonText: 'ใส่ตะกร้า', confirmButtonColor: '#ff6b35',
                 preConfirm: function() {
                     var qty = parseInt($('#sel-qty').val());
-                    return { id: item.id, name: item.name, desc: 'เมนูพิเศษ', price: item.price, qty: qty, total: item.price * qty };
+                    // ส่งค่า kcal, protein, sodium ไปให้ฟังก์ชันตะกร้ารวมยอด
+                    return { 
+                        id: item.id, 
+                        name: item.name, 
+                        desc: 'เมนูพิเศษ', 
+                        price: item.price, 
+                        qty: qty, 
+                        total: item.price * qty,
+                        kcal: item.kcal,
+                        protein: item.protein,
+                        sodium: item.sodium
+                    };
                 }
             }).then(function(res){ if(res.isConfirmed) addToCart(res.value); });
         }
@@ -409,13 +526,43 @@
         
         function showCart() { if(cart.length === 0) return; renderCartModal(); }
 
+        // --- ฟังก์ชันวาดตะกร้า (เพิ่มการโชว์สารอาหาร) ---
         function renderCartModal() {
-            var total = 0; var html = '<ul class="list-group mb-3 text-start">';
+            var total = 0, totalKcal = 0, totalPro = 0, totalNa = 0; 
+            var html = '<ul class="list-group mb-3 text-start">';
+            
             cart.forEach(function(item, index) {
                 total += item.price * item.qty;
-                html += '<li class="list-group-item d-flex justify-content-between lh-sm align-items-center"><div style="width: 50%;"><h6 class="my-0 text-truncate">'+item.name+'</h6><small class="text-muted" style="font-size:0.8rem">'+item.desc+'</small></div><div class="d-flex align-items-center bg-light rounded px-1"><button class="btn btn-sm text-secondary" onclick="updateCartItem('+index+', -1)">-</button><span class="mx-2 fw-bold" style="font-size:0.9rem">'+item.qty+'</span><button class="btn btn-sm text-secondary" onclick="updateCartItem('+index+', 1)">+</button></div><span class="text-dark fw-bold">'+(item.price * item.qty)+'.-</span></li>';
+                // คำนวณโภชนาการ (ต้องเช็คก่อนเพราะเมนูข้าวราดแกง/พิเศษยังไม่มีค่าพวกนี้)
+                var k = (item.kcal || 0) * item.qty;
+                var p = (item.protein || 0) * item.qty;
+                var n = (item.sodium || 0) * item.qty;
+                totalKcal += k; totalPro += p; totalNa += n;
+
+                var nutritionBadge = '';
+                if(k > 0 || p > 0 || n > 0) {
+                    nutritionBadge = `<div class="mt-1" style="font-size: 0.7rem;">
+                        <span class="badge bg-warning text-dark"><i class="fas fa-fire"></i> ${k} kcal</span>
+                        <span class="badge bg-info text-dark"><i class="fas fa-drumstick-bite"></i> Pro ${p}g</span>
+                        <span class="badge bg-secondary"><i class="fas fa-salt"></i> Na ${n}mg</span>
+                    </div>`;
+                }
+
+                html += '<li class="list-group-item d-flex justify-content-between lh-sm align-items-center"><div style="width: 50%;"><h6 class="my-0 text-truncate">'+item.name+'</h6><small class="text-muted" style="font-size:0.8rem">'+item.desc+'</small>'+nutritionBadge+'</div><div class="d-flex align-items-center bg-light rounded px-1"><button class="btn btn-sm text-secondary" onclick="updateCartItem('+index+', -1)">-</button><span class="mx-2 fw-bold" style="font-size:0.9rem">'+item.qty+'</span><button class="btn btn-sm text-secondary" onclick="updateCartItem('+index+', 1)">+</button></div><span class="text-dark fw-bold">'+(item.price * item.qty)+'.-</span></li>';
             });
+            
             html += '<li class="list-group-item d-flex justify-content-between bg-light"><span>รวมทั้งหมด</span><strong class="text-danger fs-5">'+total+' บาท</strong></li></ul>';
+            
+            // สรุปโภชนาการรวม
+            if(totalKcal > 0) {
+                html += `
+                    <div class="alert alert-light border border-warning py-2 px-3 mb-3 text-center" style="font-size: 0.85rem;">
+                        <span class="fw-bold d-block mb-1">📊 ข้อมูลโภชนาการโดยประมาณ</span>
+                        พลังงาน: <strong>${totalKcal}</strong> kcal | โปรตีน: <strong>${totalPro}</strong> g | โซเดียม: <strong>${totalNa}</strong> mg
+                    </div>
+                `;
+            }
+
             html += '<div class="text-start mb-2"><label class="form-label small fw-bold text-muted"><i class="fas fa-pen"></i> รายละเอียดเพิ่มเติม (ถ้ามี)</label><textarea id="cart-note" class="form-control" rows="2" placeholder="เช่น ไม่ใส่ผัก, ขอช้อนส้อม, เผ็ดน้อย"></textarea></div>';
             
             Swal.fire({ 
@@ -464,9 +611,7 @@
                             <option value="15.00-18.00 น.">15.00 - 18.00 น.</option>
                         </select>
                     </div>
-                    
                     <hr>
-                    
                     <h6 class="fw-bold mb-2">2. วิธีการชำระเงิน</h6>
                     <div class="form-check mb-2">
                         <input class="form-check-input" type="radio" name="paymentMethod" id="pay-transfer" value="โอนเงิน" checked>
@@ -510,7 +655,7 @@
                     if (finalData.payment === 'โอนเงิน') {
                         showPaymentQr(total, finalData.note);
                     } else {
-                        submitOrderToSheet(total, finalData.note, "รอชำระ");
+                        submitOrderToSheet(total, finalData.note, "สแกนจ่ายทีหลัง");
                     }
                 } else if (result.dismiss === Swal.DismissReason.cancel) {
                     renderCartModal();
