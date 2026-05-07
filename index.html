@@ -93,7 +93,7 @@
                 </div>
             </div>
             
-            <div class="text-center mt-4 mb-2"><small class="text-muted">© 2026 BCH Food Ordering System V2.1</small><br><small class="text-muted">Thumrong Malaiwalee</small></div>
+            <div class="text-center mt-4 mb-2"><small class="text-muted">© 2026 BCH Food Ordering System V3</small><br><small class="text-muted">Thumrong Malaiwalee</small></div>
         </div>
     </div>
 
@@ -104,7 +104,7 @@
     <script>
         // **********************************************************
         // ⚠️ เอาลิงก์ Web App (ที่เพิ่ง Deploy ใหม่) มาใส่ตรงนี้นะครับ ⚠️
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzLp6Unn3Af6lm-AYkdhN5JJmApndthcYqprh4_7daG-ktNxgrVVVie8_28PDUVwwqEVw/exec"; 
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzLp6Unn3Af6lm-AYkdhN5JJmApndthcYqprh4_7daG-ktNxgrVVVie8_28PDUVwwqEVw/execc"; 
         // **********************************************************
 
         var currentUser = null;
@@ -112,6 +112,17 @@
         var menuTodayList = []; 
         var cart = [];
         var PROMPTPAY_ID = "0107537000017";
+        var currentCartNote = ""; // <--- เพิ่มตัวแปรนี้เพื่อจำข้อความหมายเหตุ
+
+        // เพิ่มตัวแปรเก็บสถานะหน้า Checkout
+        var currentCheckoutState = { 
+            ecoOptions: [], 
+            deliveryMethod: 'รับเอง', 
+            pickupTime: '', 
+            deliveryLocation: '', 
+            deliveryTime: '', 
+            paymentMethod: 'โอนเงิน' 
+        };
 
         $(document).ready(function(){
             var storedUser = localStorage.getItem('bch_user');
@@ -162,7 +173,11 @@
         function logout() {
             Swal.fire({title: 'ออกจากระบบ?', icon: 'question', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ใช่', cancelButtonText: 'ยกเลิก'}).then(function(result) {
                 if (result.isConfirmed) {
-                    localStorage.removeItem('bch_user'); localStorage.removeItem('bch_pending_order'); currentUser = null; cart = [];
+                    localStorage.removeItem('bch_user'); localStorage.removeItem('bch_pending_order'); 
+                    currentUser = null; cart = []; currentCartNote = ""; 
+                    // รีเซ็ตค่า Checkout กลับเป็นค่าเริ่มต้น
+                    currentCheckoutState = { ecoOptions: [], deliveryMethod: 'รับเอง', pickupTime: '', deliveryLocation: '', deliveryTime: '', paymentMethod: 'โอนเงิน' };
+                    
                     $('#auth-section').removeClass('hidden'); $('#app-section').addClass('hidden'); $('#nav-logout-btn').addClass('hidden'); $('#cart-btn').addClass('hidden');
                     $('#login-phone').val(''); $('#reg-name').val(''); $('#reg-phone').val(''); toggleAuth('login');
                 }
@@ -245,59 +260,13 @@
                 menuData.menu1.forEach(function(item, index) {
                     html += '<div class="col-6 col-md-4"><div class="card h-100 food-card" onclick="selectMenu1('+index+')"><img src="'+item.img+'" class="card-img-top food-img" onerror="this.src=\'https://via.placeholder.com/150\'"><div class="card-body p-2 text-center"><h6 class="card-title fw-bold mb-0 text-dark">'+item.name+'</h6></div></div></div>';
                 });
-                
-                html += `
-                    <div class="col-6 col-md-4">
-                        <div class="card h-100 food-card" onclick="selectMenu1('custom')" style="border: 2px dashed var(--primary-color);">
-                            <div class="card-body p-2 text-center d-flex flex-column justify-content-center align-items-center" style="min-height: 160px; background-color: #fff8f5;">
-                                <i class="fas fa-edit fa-3x mb-2" style="color: var(--primary-color);"></i>
-                                <h6 class="card-title fw-bold mb-0 text-dark">เมนูอื่นๆ</h6>
-                                <small class="text-danger mt-1">พิมพ์สั่งอิสระ</small>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                // ตัด block เมนูสั่งอิสระตรงนี้ออกไปแล้ว
                 html += '</div>';
                 Swal.fire({title: '🍱 อาหารตามสั่ง', html: html, width: 800, showCloseButton: true, showConfirmButton: false, customClass: { popup: 'swal-wide' }});
             });
         }
 
         function selectMenu1(index) {
-            if (index === 'custom') {
-                var customPopupHtml = `
-                    <div class="text-start px-3">
-                        <div class="mb-2">
-                            <label class="fw-bold">ระบุเมนูอาหารที่ต้องการสั่ง</label>
-                            <textarea id="custom-menu-desc" class="form-control mt-1" rows="3" placeholder="เช่น ข้าวผัดกะเพราปลาหมึก ไข่ดาว ไม่เผ็ด"></textarea>
-                        </div>
-                        <div class="alert alert-warning py-2 small mb-3">
-                            <i class="fas fa-info-circle"></i> ราคาอาหาร 0 บาทไว้ก่อน สามารถสแกนจ่ายตามราคาจริงภายหลังได้
-                        </div>
-                        <div class="mt-3 text-center">
-                            <label class="fw-bold d-block mb-1">จำนวน</label>
-                            <div class="btn-group">
-                                <button class="btn btn-outline-secondary" onclick="stepQty(-1)">-</button>
-                                <input type="number" id="sel-qty" class="form-control text-center" value="1" readonly style="width: 60px;">
-                                <button class="btn btn-outline-secondary" onclick="stepQty(1)">+</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                Swal.fire({
-                    title: 'สั่งอาหารอื่นๆ', html: customPopupHtml, showCloseButton: true, confirmButtonText: 'ใส่ตะกร้า', confirmButtonColor: '#ff6b35',
-                    preConfirm: function() {
-                        var desc = $('#custom-menu-desc').val().trim();
-                        var qty = parseInt($('#sel-qty').val());
-                        if (!desc) { Swal.showValidationMessage('กรุณาพิมพ์เมนูอาหารที่ต้องการ'); return false; }
-                        // ส่งค่าโภชนาการเป็น 0 สำหรับเมนูอิสระ
-                        return { id: 'CUSTOM-'+Date.now(), name: 'สั่งอิสระ (จ่ายทีหลัง)', desc: desc, price: 0, qty: qty, total: 0, kcal: 0, protein: 0, sodium: 0 };
-                    }
-                }).then(function(result) { if(result.isConfirmed) addToCart(result.value); });
-                
-                return;
-            }
-
             var item = menuData.menu1[index];
             
             // นำค่า kcal, protein, sodium มาซ่อนไว้ใน value ของ option
@@ -526,14 +495,13 @@
         
         function showCart() { if(cart.length === 0) return; renderCartModal(); }
 
-        // --- ฟังก์ชันวาดตะกร้า (เพิ่มการโชว์สารอาหาร) ---
+        // --- ฟังก์ชันวาดตะกร้า ---
         function renderCartModal() {
             var total = 0, totalKcal = 0, totalPro = 0, totalNa = 0; 
             var html = '<ul class="list-group mb-3 text-start">';
             
             cart.forEach(function(item, index) {
                 total += item.price * item.qty;
-                // คำนวณโภชนาการ (ต้องเช็คก่อนเพราะเมนูข้าวราดแกง/พิเศษยังไม่มีค่าพวกนี้)
                 var k = (item.kcal || 0) * item.qty;
                 var p = (item.protein || 0) * item.qty;
                 var n = (item.sodium || 0) * item.qty;
@@ -553,7 +521,6 @@
             
             html += '<li class="list-group-item d-flex justify-content-between bg-light"><span>รวมทั้งหมด</span><strong class="text-danger fs-5">'+total+' บาท</strong></li></ul>';
             
-            // สรุปโภชนาการรวม
             if(totalKcal > 0) {
                 html += `
                     <div class="alert alert-light border border-warning py-2 px-3 mb-3 text-center" style="font-size: 0.85rem;">
@@ -563,17 +530,24 @@
                 `;
             }
 
-            html += '<div class="text-start mb-2"><label class="form-label small fw-bold text-muted"><i class="fas fa-pen"></i> รายละเอียดเพิ่มเติม (ถ้ามี)</label><textarea id="cart-note" class="form-control" rows="2" placeholder="เช่น ไม่ใส่ผัก, ขอช้อนส้อม, เผ็ดน้อย"></textarea></div>';
+            // ใส่ currentCartNote กลับเข้าไปใน textarea เพื่อไม่ให้ข้อมูลหาย
+            html += '<div class="text-start mb-2"><label class="form-label small fw-bold text-muted"><i class="fas fa-pen"></i> รายละเอียดเพิ่มเติม (ถ้ามี)</label><textarea id="cart-note" class="form-control" rows="2" placeholder="เช่น ไม่ใส่ผัก, ขอช้อนส้อม, เผ็ดน้อย">' + currentCartNote + '</textarea></div>';
             
             Swal.fire({ 
                 title: '🛒 ตะกร้าของฉัน', html: html, showCancelButton: true, showCloseButton: true, 
                 confirmButtonText: 'ดำเนินการต่อ', confirmButtonColor: '#27ae60', cancelButtonText: 'เลือกต่อ', width: 600, 
-                preConfirm: function() { return $('#cart-note').val(); } 
+                preConfirm: function() { 
+                    currentCartNote = $('#cart-note').val(); // อัปเดตตัวแปรเมื่อกดดำเนินการต่อ
+                    return currentCartNote; 
+                } 
             }).then(function(result) { 
                 if(result.isConfirmed) { 
                     var note = result.value; 
                     showCheckoutOptions(total, note); 
-                } 
+                } else {
+                    // ถึงกดปิด หรือเลือกต่อ ก็บันทึกข้อความไว้
+                    currentCartNote = $('#cart-note').val();
+                }
             });
         }
 
@@ -586,83 +560,121 @@
             } else { renderCartModal(); }
         }
 
-       function showCheckoutOptions(total, cartNote) {
-    var html = `
-        <div class="text-start px-2">
-            <h6 class="fw-bold mb-2">1. วิธีการรับอาหาร</h6>
-            <div class="form-check mb-2">
-                <input class="form-check-input" type="radio" name="deliveryMethod" id="del-pickup" value="รับเอง" checked onchange="toggleDeliveryOptions()">
-                <label class="form-check-label" for="del-pickup">รับเองที่แผนกโภชนาการ</label>
-            </div>
-            <div id="pickup-options" class="mb-3 ps-4">
-                <input type="text" id="pickup-time" class="form-control form-control-sm" placeholder="ระบุเวลาที่มารับ (เช่น 12.00 น.)">
-            </div>
+        function showCheckoutOptions(total, cartNote) {
+            // ดึงค่าที่เคยเลือกไว้มาประมวลผลให้ปุ่มต่างๆ แสดงผล (Checked)
+            var ecoOpts = currentCheckoutState.ecoOptions || [];
+            var chkCutlery = ecoOpts.includes("ไม่รับช้อนส้อม") ? "checked" : "";
+            var chkCondiment = ecoOpts.includes("ไม่รับเครื่องปรุง") ? "checked" : "";
+            var chkBag = ecoOpts.includes("ไม่รับถุง") ? "checked" : "";
 
-            <div class="form-check mb-2">
-                <input class="form-check-input" type="radio" name="deliveryMethod" id="del-delivery" value="จัดส่ง" onchange="toggleDeliveryOptions()">
-                <label class="form-check-label" for="del-delivery">จัดส่ง (ระบุสถานที่)</label>
-            </div>
-            <div id="delivery-options" class="mb-3 ps-4 hidden">
-                <input type="text" id="delivery-location" class="form-control form-control-sm mb-2" placeholder="ตึก/ชั้น/แผนก">
-                <select id="delivery-time" class="form-select form-select-sm">
-                    <option value="">-- เลือกเวลาจัดส่ง --</option>
-                    <option value="07.00-10.00 น.">07.00 - 10.00 น.</option>
-                    <option value="11.00-13.00 น.">11.00 - 13.00 น.</option>
-                    <option value="15.00-18.00 น.">15.00 - 18.00 น.</option>
-                </select>
-            </div>
-            <hr>
-            <h6 class="fw-bold mb-2">2. วิธีการชำระเงิน</h6>
-            <div class="form-check mb-2">
-                <input class="form-check-input" type="radio" name="paymentMethod" id="pay-transfer" value="โอนเงิน" checked>
-                <label class="form-check-label" for="pay-transfer">โอนเงิน (สแกน QR Code)</label>
-            </div>
-            <div class="form-check mb-2">
-                <input class="form-check-input" type="radio" name="paymentMethod" id="pay-later" value="สแกนจ่ายทีหลัง">
-                <label class="form-check-label" for="pay-later">สแกนจ่ายทีหลัง (ตอนรับอาหาร)</label>
-            </div>
-        </div>
-    `;
+            var methodPickup = currentCheckoutState.deliveryMethod === "รับเอง" ? "checked" : "";
+            var methodDelivery = currentCheckoutState.deliveryMethod === "จัดส่ง" ? "checked" : "";
+            var hidePickup = currentCheckoutState.deliveryMethod === "รับเอง" ? "" : "hidden";
+            var hideDelivery = currentCheckoutState.deliveryMethod === "จัดส่ง" ? "" : "hidden";
 
-    Swal.fire({
-        title: 'รายละเอียดการสั่งซื้อ',
-        html: html,
-        showCancelButton: true,
-        confirmButtonText: 'ยืนยัน',
-        confirmButtonColor: '#ff6b35',
-        cancelButtonText: 'ย้อนกลับ',
-        preConfirm: function() {
-            var deliveryMethod = $('input[name="deliveryMethod"]:checked').val();
-            var paymentMethod = $('input[name="paymentMethod"]:checked').val();
-            var finalNote = cartNote; 
+            var html = `
+                <div class="text-start px-2">
+                    <h6 class="fw-bold mb-2 text-success"><i class="fas fa-leaf"></i> ตัวเลือกรักษ์สิ่งแวดล้อม</h6>
+                    <div class="d-flex flex-wrap gap-3 mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input eco-check" type="checkbox" value="ไม่รับช้อนส้อม" id="eco-cutlery" ${chkCutlery}>
+                            <label class="form-check-label text-muted" for="eco-cutlery">ไม่รับช้อนส้อม</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input eco-check" type="checkbox" value="ไม่รับเครื่องปรุง" id="eco-condiment" ${chkCondiment}>
+                            <label class="form-check-label text-muted" for="eco-condiment">ไม่รับเครื่องปรุง</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input eco-check" type="checkbox" value="ไม่รับถุง" id="eco-bag" ${chkBag}>
+                            <label class="form-check-label text-muted" for="eco-bag">ไม่รับถุง</label>
+                        </div>
+                    </div>
+                    <hr class="mt-1 mb-3">
 
-            if (deliveryMethod === 'รับเอง') {
-                var time = $('#pickup-time').val().trim();
-                if (!time) { Swal.showValidationMessage('กรุณาระบุเวลาที่มารับอาหาร'); return false; }
-                finalNote += "\n(รับเองเวลา: " + time + ")";
-            } else if (deliveryMethod === 'จัดส่ง') {
-                var loc = $('#delivery-location').val().trim();
-                var time = $('#delivery-time').val();
-                if (!loc || !time) { Swal.showValidationMessage('กรุณาระบุสถานที่และเวลาจัดส่งให้ครบ'); return false; }
-                finalNote += "\n(จัดส่ง: " + loc + " | เวลา: " + time + ")";
-            }
+                    <h6 class="fw-bold mb-2">1. วิธีการรับอาหาร</h6>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="deliveryMethod" id="del-pickup" value="รับเอง" ${methodPickup} onchange="toggleDeliveryOptions()">
+                        <label class="form-check-label" for="del-pickup">รับเองที่แผนกโภชนาการ</label>
+                    </div>
+                    <div id="pickup-options" class="mb-3 ps-4 ${hidePickup}">
+                        <input type="text" id="pickup-time" class="form-control form-control-sm" placeholder="ระบุเวลาที่มารับ (เช่น 12.00 น.)" value="${currentCheckoutState.pickupTime}">
+                    </div>
 
-            return { note: finalNote.trim(), payment: paymentMethod };
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="deliveryMethod" id="del-delivery" value="จัดส่ง" ${methodDelivery} onchange="toggleDeliveryOptions()">
+                        <label class="form-check-label" for="del-delivery">จัดส่ง (ระบุสถานที่)</label>
+                    </div>
+                    <div id="delivery-options" class="mb-3 ps-4 ${hideDelivery}">
+                        <input type="text" id="delivery-location" class="form-control form-control-sm mb-2" placeholder="ตึก/ชั้น/แผนก" value="${currentCheckoutState.deliveryLocation}">
+                        <select id="delivery-time" class="form-select form-select-sm">
+                            <option value="">-- เลือกเวลาจัดส่ง --</option>
+                            <option value="07.00-10.00 น." ${currentCheckoutState.deliveryTime === '07.00-10.00 น.' ? 'selected' : ''}>07.00 - 10.00 น.</option>
+                            <option value="11.00-13.00 น." ${currentCheckoutState.deliveryTime === '11.00-13.00 น.' ? 'selected' : ''}>11.00 - 13.00 น.</option>
+                            <option value="15.00-18.00 น." ${currentCheckoutState.deliveryTime === '15.00-18.00 น.' ? 'selected' : ''}>15.00 - 18.00 น.</option>
+                        </select>
+                    </div>
+                    <hr>
+                    <h6 class="fw-bold mb-2">2. วิธีการชำระเงิน</h6>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="paymentMethod" id="pay-transfer" value="โอนเงิน" checked>
+                        <label class="form-check-label" for="pay-transfer">โอนเงิน (สแกน QR Code พร้อมแนบสลิป)</label>
+                    </div>
+                </div>
+            `;
+
+            Swal.fire({
+                title: 'รายละเอียดการสั่งซื้อ',
+                html: html,
+                showCancelButton: true,
+                confirmButtonText: 'ยืนยัน',
+                confirmButtonColor: '#ff6b35',
+                cancelButtonText: 'ย้อนกลับ',
+                preConfirm: function() {
+                    var deliveryMethod = $('input[name="deliveryMethod"]:checked').val();
+                    var finalNote = cartNote; 
+
+                    var ecoOptions = [];
+                    $('.eco-check:checked').each(function() {
+                        ecoOptions.push($(this).val());
+                    });
+
+                    var pickupTime = $('#pickup-time').val().trim();
+                    var deliveryLocation = $('#delivery-location').val().trim();
+                    var deliveryTime = $('#delivery-time').val();
+
+                    // --- บันทึกค่าเก็บไว้ใช้ครั้งหน้าที่เปิดหน้านี้ ---
+                    currentCheckoutState.ecoOptions = ecoOptions;
+                    currentCheckoutState.deliveryMethod = deliveryMethod;
+                    currentCheckoutState.pickupTime = pickupTime;
+                    currentCheckoutState.deliveryLocation = deliveryLocation;
+                    currentCheckoutState.deliveryTime = deliveryTime;
+                    currentCheckoutState.paymentMethod = 'โอนเงิน'; // ล็อคให้เป็นโอนเงิน
+
+                    if (ecoOptions.length > 0) {
+                        var prefix = finalNote ? "\n" : "";
+                        finalNote += prefix + "[รักษ์โลก: " + ecoOptions.join(", ") + "]";
+                    }
+
+                    if (deliveryMethod === 'รับเอง') {
+                        if (!pickupTime) { Swal.showValidationMessage('กรุณาระบุเวลาที่มารับอาหาร'); return false; }
+                        finalNote += "\n(รับเองเวลา: " + pickupTime + ")";
+                    } else if (deliveryMethod === 'จัดส่ง') {
+                        if (!deliveryLocation || !deliveryTime) { Swal.showValidationMessage('กรุณาระบุสถานที่และเวลาจัดส่งให้ครบ'); return false; }
+                        finalNote += "\n(จัดส่ง: " + deliveryLocation + " | เวลา: " + deliveryTime + ")";
+                    }
+
+                    return { note: finalNote.trim() };
+                }
+            }).then(function(result) {
+                if (result.isConfirmed) {
+                    var finalData = result.value;
+                    // พาไปหน้าสแกน QR Code ทันที เพราะมีช่องทางชำระเงินเดียวแล้ว
+                    showPaymentQr(total, finalData.note);
+                } else if (result.dismiss === Swal.DismissReason.cancel) {
+                    renderCartModal();
+                }
+            });
         }
-    }).then(function(result) {
-        if (result.isConfirmed) {
-            var finalData = result.value;
-            if (finalData.payment === 'โอนเงิน') {
-                showPaymentQr(total, finalData.note);
-            } else {
-                // เพิ่ม null เป็นพารามิเตอร์ตัวที่ 4 เพื่อป้องกัน Error
-                submitOrderToSheet(total, finalData.note, "สแกนจ่ายทีหลัง", null);
-            }
-        } else if (result.dismiss === Swal.DismissReason.cancel) {
-            renderCartModal();
-        }
-    });
-}
         function toggleDeliveryOptions() {
             var method = $('input[name="deliveryMethod"]:checked').val();
             if (method === 'รับเอง') {
@@ -712,7 +724,7 @@
             var fileInput = document.getElementById('slip-upload');
             // เช็คว่าแนบไฟล์หรือยัง
             if (fileInput.files.length === 0) {
-                Swal.showValidationMessage('⚠️ กรุณาแนบสลิปโอนเงินก่อนกดยืนยันออเดอร์เพื่อรวดเร็วในการตรวจสอบ');
+                Swal.showValidationMessage('⚠️ กรุณาแนบสลิปโอนเงินก่อนกดยืนยันออเดอร์');
                 return false;
             }
             var file = fileInput.files[0];
@@ -759,15 +771,15 @@
             });
         }
     }).then(function(result) {
-        if (result.isConfirmed) {
-            var slipBase64 = result.value;
-            // ส่งค่า slipBase64 เป็นพารามิเตอร์ตัวที่ 4 อย่างชัดเจน
-            submitOrderToSheet(total, note, "โอนเงิน", slipBase64); 
-        } else {
-            localStorage.removeItem('bch_pending_order');
-            renderCartModal();
-        }
-    });
+            if (result.isConfirmed) {
+                var slipBase64 = result.value;
+                submitOrderToSheet(total, note, "โอนเงิน", slipBase64); 
+            } else {
+                localStorage.removeItem('bch_pending_order');
+                // เปลี่ยนจาก renderCartModal() เป็นกลับไปหน้ารายละเอียดการสั่งซื้อพร้อมค่าเดิม
+                showCheckoutOptions(total, currentCartNote);
+            }
+        });
 }
         function downloadQrImage(url) {
             Swal.fire({
@@ -779,20 +791,24 @@
         }
 
         function submitOrderToSheet(total, note, status, slipBase64) {
-    Swal.fire({title: 'กำลังส่งออเดอร์...', text: 'กรุณารอสักครู่', allowOutsideClick: false, didOpen: function(){ Swal.showLoading(); } });
-    
-    // จัดการกรณีไม่ได้แนบสลิป (เช่น สแกนจ่ายทีหลัง) ให้ค่าเป็น null เพื่อป้องกัน Error
-    var finalSlip = slipBase64 ? slipBase64 : null;
-    
-    var orderData = { user: currentUser, cart: cart, total: total, note: note, status: status, slipImage: finalSlip };
-    
-    callApi('saveOrder', orderData).then(function(res){
-        if(res.status) {
-            localStorage.removeItem('bch_pending_order'); cart = []; updateCartBadge();
-            Swal.fire({ icon: 'success', title: 'สั่งอาหารสำเร็จ!', html: 'Order ID: ' + res.orderId + '<br>ขอบคุณที่ใช้บริการ ขอพระเจ้าอวยพระพร', confirmButtonColor: '#ff6b35', showCloseButton: true });
-        } else { Swal.fire({title: 'Error', text: res.msg, icon: 'error'}); }
-    }).catch(err => Swal.fire('Error', 'Connection Failed', 'error'));
-}
+            Swal.fire({title: 'กำลังส่งออเดอร์...', text: 'กรุณารอสักครู่', allowOutsideClick: false, didOpen: function(){ Swal.showLoading(); } });
+            
+            var finalSlip = slipBase64 ? slipBase64 : null;
+            var orderData = { user: currentUser, cart: cart, total: total, note: note, status: status, slipImage: finalSlip };
+            
+            callApi('saveOrder', orderData).then(function(res){
+                if(res.status) {
+                    localStorage.removeItem('bch_pending_order'); 
+                    cart = []; 
+                    currentCartNote = ""; // เคลียร์ข้อความทิ้ง
+                    // รีเซ็ตค่า Checkout ทิ้งเมื่อสั่งซื้อสำเร็จ
+                    currentCheckoutState = { ecoOptions: [], deliveryMethod: 'รับเอง', pickupTime: '', deliveryLocation: '', deliveryTime: '', paymentMethod: 'โอนเงิน' };
+                    updateCartBadge();
+
+                    Swal.fire({ icon: 'success', title: 'สั่งอาหารสำเร็จ!', html: 'Order ID: ' + res.orderId + '<br>ขอบคุณที่ใช้บริการ ขอพระเจ้าอวยพระพร', confirmButtonColor: '#ff6b35', showCloseButton: true });
+                } else { Swal.fire({title: 'Error', text: res.msg, icon: 'error'}); }
+            }).catch(err => Swal.fire('Error', 'Connection Failed', 'error'));
+        }
     </script>
 </body>
 </html>
