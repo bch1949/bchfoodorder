@@ -188,15 +188,24 @@
             $('#auth-section').addClass('hidden'); $('#app-section').removeClass('hidden'); $('#nav-logout-btn').removeClass('hidden');
             $('#user-display-name').text(currentUser.name);
             
-            // --- แอบโหลดข้อมูลเมนูเตรียมไว้เลย จะได้ไม่ช้าตอนกด ---
-            if(menuData.menu1.length === 0) {
-                callApi('getMenuData', {}).then(function(data){ menuData = data; });
-            }
-            if(menuTodayList.length === 0) {
-                callApi('getMenuToday', {}).then(function(data){ menuTodayList = data.items; });
-            }
-            // -------------------------------------------
+            // --- 1. ดึงข้อมูลจาก Cache ในเครื่องลูกค้ามาก่อน (เพื่อให้กดปุ๊บติดปั๊บ) ---
+            var cachedMenu = localStorage.getItem('bch_menu_data');
+            if (cachedMenu) { menuData = JSON.parse(cachedMenu); }
 
+            var cachedMenuToday = localStorage.getItem('bch_menu_today');
+            if (cachedMenuToday) { menuTodayList = JSON.parse(cachedMenuToday); }
+            
+            // --- 2. แอบไปโหลดข้อมูลล่าสุดจาก Sheets แบบเงียบๆ (Background Update) ---
+            callApi('getMenuData', {}).then(function(data){
+                menuData = data;
+                localStorage.setItem('bch_menu_data', JSON.stringify(menuData)); // บันทึกทับของเดิม
+            });
+            callApi('getMenuToday', {}).then(function(data){
+                menuTodayList = data.items;
+                localStorage.setItem('bch_menu_today', JSON.stringify(menuTodayList)); // บันทึกทับของเดิม
+            });
+
+            // จัดการตะกร้าสินค้าค้าง (ถ้ามี)
             var pendingOrder = localStorage.getItem('bch_pending_order');
             if (pendingOrder) { 
                 var order = JSON.parse(pendingOrder); 
@@ -259,7 +268,7 @@
             }).catch(err => Swal.fire('Error', 'Connection Failed', 'error'));
         }
 
-        // ------------------ อาหารตามสั่ง ------------------
+       // ------------------ อาหารตามสั่ง ------------------
         function openMenu1() {
             var now = new Date(); 
             var hour = now.getHours();
@@ -274,19 +283,22 @@
                 }); 
             }
             
-            // ถ้ามีข้อมูลเมนูอยู่แล้ว ให้แสดงเลยทันที ไม่ต้องเสียเวลาโหลด
-            if (menuData.menu1.length > 0) {
+            // ถ้ามีข้อมูลเมนูใน Cache แล้ว ให้แสดงผลทันทีไม่ต้องรอโหลด
+            if (menuData.menu1 && menuData.menu1.length > 0) {
                 renderMenu1();
                 return;
             }
 
+            // กรณีเข้ามาครั้งแรกสุดๆ ยังไม่มี Cache
             Swal.showLoading();
             callApi('getMenuData', {}).then(function(data){
-                menuData = data; Swal.close();
+                menuData = data; 
+                localStorage.setItem('bch_menu_data', JSON.stringify(menuData));
+                Swal.close();
                 renderMenu1();
             });
         }
-
+        
         // ฟังก์ชันช่วยวาดหน้าต่างเมนู 1
         function renderMenu1() {
             var html = '<div class="row g-3">';
