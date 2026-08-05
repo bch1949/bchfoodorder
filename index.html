@@ -187,6 +187,16 @@
         function showApp() {
             $('#auth-section').addClass('hidden'); $('#app-section').removeClass('hidden'); $('#nav-logout-btn').removeClass('hidden');
             $('#user-display-name').text(currentUser.name);
+            
+            // --- แอบโหลดข้อมูลเมนูเตรียมไว้เลย จะได้ไม่ช้าตอนกด ---
+            if(menuData.menu1.length === 0) {
+                callApi('getMenuData', {}).then(function(data){ menuData = data; });
+            }
+            if(menuTodayList.length === 0) {
+                callApi('getMenuToday', {}).then(function(data){ menuTodayList = data.items; });
+            }
+            // -------------------------------------------
+
             var pendingOrder = localStorage.getItem('bch_pending_order');
             if (pendingOrder) { 
                 var order = JSON.parse(pendingOrder); 
@@ -251,19 +261,40 @@
 
         // ------------------ อาหารตามสั่ง ------------------
         function openMenu1() {
-            var now = new Date(); var hour = now.getHours();
-            if (hour < 6 || hour >= 18) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 18:00 น.'}); }
+            var now = new Date(); 
+            var hour = now.getHours();
+            var minute = now.getMinutes();
+            
+            // เช็คเวลา: ปิดก่อน 8:00 น. หรือ หลัง 17:45 น.
+            if (hour < 8 || hour > 17 || (hour === 17 && minute > 45)) { 
+                return Swal.fire({
+                    icon: 'warning', 
+                    title: 'นอกเวลาให้บริการ', 
+                    text: '08:00 - 17:45 น.'
+                }); 
+            }
+            
+            // ถ้ามีข้อมูลเมนูอยู่แล้ว ให้แสดงเลยทันที ไม่ต้องเสียเวลาโหลด
+            if (menuData.menu1.length > 0) {
+                renderMenu1();
+                return;
+            }
+
             Swal.showLoading();
             callApi('getMenuData', {}).then(function(data){
                 menuData = data; Swal.close();
-                var html = '<div class="row g-3">';
-                menuData.menu1.forEach(function(item, index) {
-                    html += '<div class="col-6 col-md-4"><div class="card h-100 food-card" onclick="selectMenu1('+index+')"><img src="'+item.img+'" class="card-img-top food-img" onerror="this.src=\'https://via.placeholder.com/150\'"><div class="card-body p-2 text-center"><h6 class="card-title fw-bold mb-0 text-dark">'+item.name+'</h6></div></div></div>';
-                });
-                // ตัด block เมนูสั่งอิสระตรงนี้ออกไปแล้ว
-                html += '</div>';
-                Swal.fire({title: '🍱 อาหารตามสั่ง', html: html, width: 800, showCloseButton: true, showConfirmButton: false, customClass: { popup: 'swal-wide' }});
+                renderMenu1();
             });
+        }
+
+        // ฟังก์ชันช่วยวาดหน้าต่างเมนู 1
+        function renderMenu1() {
+            var html = '<div class="row g-3">';
+            menuData.menu1.forEach(function(item, index) {
+                html += '<div class="col-6 col-md-4"><div class="card h-100 food-card" onclick="selectMenu1('+index+')"><img src="'+item.img+'" class="card-img-top food-img" onerror="this.src=\'https://via.placeholder.com/150\'"><div class="card-body p-2 text-center"><h6 class="card-title fw-bold mb-0 text-dark">'+item.name+'</h6></div></div></div>';
+            });
+            html += '</div>';
+            Swal.fire({title: '🍱 อาหารตามสั่ง', html: html, width: 800, showCloseButton: true, showConfirmButton: false, customClass: { popup: 'swal-wide' }});
         }
 
         function selectMenu1(index) {
@@ -317,31 +348,31 @@
         // ------------------ ข้าวราดแกง ------------------
         function openMenu2() {
             var now = new Date(); var hour = now.getHours(); var dayOfWeek = now.getDay();
-            
-            // --- 1. เช็ควันเสาร์-อาทิตย์ ---
-            if (dayOfWeek === 0 || dayOfWeek === 6) {
-                return Swal.fire({icon: 'warning', title: 'ปิดบริการ', text: 'เปิดให้บริการวันจันทร์-ศุกร์ ครับ'});
-            }
-
-            // --- 2. เช็คเวลา ---
+            if (dayOfWeek === 0 || dayOfWeek === 6) { return Swal.fire({icon: 'warning', title: 'ปิดบริการ', text: 'เปิดให้บริการวันจันทร์-ศุกร์ ครับ'}); }
             if (hour < 6 || hour >= 14) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 14:00 น.'}); }
             
+            if (menuData.menu2.length > 0) {
+                askMenu2Format();
+                return;
+            }
+
             Swal.showLoading();
             callApi('getMenuData', {}).then(function(data){
                 menuData = data; 
                 Swal.close();
-
-                // --- 3. เช็คอาหารหมด ---
                 if (!menuData.menu2 || menuData.menu2.length === 0) {
                     return Swal.fire({icon: 'info', title: 'ขออภัย', text: 'วันนี้อาหารหมดแล้วค่ะ'});
                 }
-
-                Swal.fire({
-                    title: 'โปรดเลือกรูปแบบ', icon: 'info', showDenyButton: true, showCloseButton: true, confirmButtonText: 'ราดข้าว (กล่อง)', denyButtonText: 'เป็นกับข้าว (ถุง)', confirmButtonColor: '#ff6b35', denyButtonColor: '#0984e3'
-                }).then(function(result) {
-                    if (result.isConfirmed) selectRiceCurry('rice');
-                    else if (result.isDenied) selectRiceCurry('dish');
-                });
+                askMenu2Format();
+            });
+        }
+        
+        function askMenu2Format() {
+            Swal.fire({
+                title: 'โปรดเลือกรูปแบบ', icon: 'info', showDenyButton: true, showCloseButton: true, confirmButtonText: 'ราดข้าว (กล่อง)', denyButtonText: 'เป็นกับข้าว (ถุง)', confirmButtonColor: '#ff6b35', denyButtonColor: '#0984e3'
+            }).then(function(result) {
+                if (result.isConfirmed) selectRiceCurry('rice');
+                else if (result.isDenied) selectRiceCurry('dish');
             });
         }
 
@@ -415,32 +446,32 @@
         // ------------------ เมนูพิเศษ ------------------
         function openMenuToday() {
             var now = new Date(); var hour = now.getHours(); var dayOfWeek = now.getDay();
-            
-            // --- 1. เช็ควันเสาร์-อาทิตย์ ---
-            if (dayOfWeek === 0 || dayOfWeek === 6) {
-                return Swal.fire({icon: 'warning', title: 'ปิดบริการ', text: 'เปิดให้บริการวันจันทร์-ศุกร์ ครับ'});
-            }
-
-            // --- 2. เช็คเวลา ---
+            if (dayOfWeek === 0 || dayOfWeek === 6) { return Swal.fire({icon: 'warning', title: 'ปิดบริการ', text: 'เปิดให้บริการวันจันทร์-ศุกร์ ครับ'}); }
             if (hour < 6 || hour >= 12) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 12:00 น.'}); }
+
+            if (menuTodayList.length > 0) {
+                renderMenuToday();
+                return;
+            }
 
             Swal.showLoading();
             callApi('getMenuToday', {}).then(function(data){
                 menuTodayList = data.items;
                 Swal.close();
-                
-                // --- 3. เช็คอาหารหมด ---
                 if (!menuTodayList || menuTodayList.length === 0) {
                     return Swal.fire({icon: 'info', title: 'ขออภัย', text: 'วันนี้อาหารหมดแล้วค่ะ'});
                 }
-
-                var html = '<div class="row g-3">';
-                menuTodayList.forEach(function(item, index) {
-                    html += '<div class="col-6 col-md-4"><div class="card h-100 food-card" onclick="selectMenuToday('+index+')"><img src="'+item.img+'" class="card-img-top food-img" onerror="this.src=\'https://via.placeholder.com/150\'"><div class="card-body p-2 text-center"><h6 class="card-title fw-bold mb-0 text-dark">'+item.name+'</h6><span class="badge bg-danger rounded-pill mt-1">'+item.price+'.-</span></div></div></div>';
-                });
-                html += '</div>';
-                Swal.fire({title: '⭐ เมนูพิเศษประจำวัน', html: html, width: 800, showCloseButton: true, showConfirmButton: false, customClass: { popup: 'swal-wide' }});
+                renderMenuToday();
             });
+        }
+
+        function renderMenuToday() {
+            var html = '<div class="row g-3">';
+            menuTodayList.forEach(function(item, index) {
+                html += '<div class="col-6 col-md-4"><div class="card h-100 food-card" onclick="selectMenuToday('+index+')"><img src="'+item.img+'" class="card-img-top food-img" onerror="this.src=\'https://via.placeholder.com/150\'"><div class="card-body p-2 text-center"><h6 class="card-title fw-bold mb-0 text-dark">'+item.name+'</h6><span class="badge bg-danger rounded-pill mt-1">'+item.price+'.-</span></div></div></div>';
+            });
+            html += '</div>';
+            Swal.fire({title: '⭐ เมนูพิเศษประจำวัน', html: html, width: 800, showCloseButton: true, showConfirmButton: false, customClass: { popup: 'swal-wide' }});
         }
 
         // +++++ ฟังก์ชัน: เลือกเมนูพิเศษ (แสดงโภชนาการ) +++++
