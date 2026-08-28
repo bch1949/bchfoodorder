@@ -648,7 +648,7 @@
                         <label class="form-check-label" for="del-delivery">จัดส่ง (ระบุสถานที่)</label>
                     </div>
                     <div id="delivery-options" class="mb-3 ps-4 ${hideDelivery}">
-                        <input type="text" id="delivery-location" class="form-control form-control-sm mb-2" placeholder="ตึก/ชั้น/แผนก" value="${currentCheckoutState.deliveryLocation}">
+                        <input type="text" id="delivery-location" class="form-control form-control-sm mb-2" placeholder="ตึก/ชั้น/แผนก/ระบุเวลาจัดส่ง" value="${currentCheckoutState.deliveryLocation}">
                         <select id="delivery-time" class="form-select form-select-sm">
                             <option value="">-- เลือกเวลาจัดส่ง --</option>
                             <option value="07.00-10.00 น." ${currentCheckoutState.deliveryTime === '07.00-10.00 น.' ? 'selected' : ''}>07.00 - 10.00 น.</option>
