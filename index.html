@@ -730,171 +730,170 @@
         }
 
         // ฟังก์ชันล้างตะกร้า (แยกออกมาเพื่อให้เรียกใช้ง่ายขึ้น)
-function clearCartOnSuccess(orderId) {
-    localStorage.removeItem('bch_pending_order');
-    cart = [];
-    currentCartNote = "";
-    currentCheckoutState = { ecoOptions: [], deliveryMethod: 'รับเอง', pickupTime: '', deliveryLocation: '', deliveryTime: '', paymentMethod: 'โอนเงิน' };
-    updateCartBadge();
-    Swal.fire({ 
-        icon: 'success', 
-        title: 'สั่งอาหารสำเร็จ!', 
-        html: 'Order ID: ' + orderId + '<br>ระบบได้รับออเดอร์เรียบร้อยแล้ว ขอพระเจ้าอวยพระพร', 
-        confirmButtonColor: '#ff6b35', 
-        showCloseButton: true 
-    });
-}
-
-function showPaymentQr(total, note) {
-    localStorage.setItem('bch_pending_order', JSON.stringify({ total: total, note: note, cart: cart, payment_method: 'โอนเงิน' }));
-    var amount = parseFloat(total).toFixed(2);
-    var qrUrl = 'https://promptpay.io/' + PROMPTPAY_ID + '/' + amount;
-    
-    var html = `
-        <div class="text-center">
-            <div class="mb-2">ยอดชำระ: <strong class="text-danger fs-4">${amount}</strong> บาท</div>
-            <div class="border p-2 d-inline-block rounded bg-white shadow-sm mb-3">
-                <img id="qr-image" src="https://lh3.googleusercontent.com/d/1OSPnc96ejBHV7Z6CFSNWc8t86INNwKDh" width="250" height="300" alt="PromptPay QR" onerror="this.onerror=null;this.src='https://placehold.co/250x250?text=Error+Loading+QR';">
-            </div>
-            <div class="d-grid gap-2 col-8 mx-auto mb-3">
-                <button type="button" class="btn btn-outline-primary rounded-pill btn-sm" id="btn-dl-qr">
-                    <i class="fas fa-download"></i> กดค้างที่ QR เพื่อบันทึกรูป
-                </button>
-            </div>
-            <hr>
-            <div class="text-start mt-2">
-                <label class="form-label fw-bold text-danger small"><i class="fas fa-camera"></i> แนบสลิปโอนเงิน (บังคับ)</label>
-                <input class="form-control form-control-sm" type="file" id="slip-upload" accept="image/jpeg, image/png">
-            </div>
-        </div>`;
-    
-    Swal.fire({
-        title: 'สแกนจ่ายเงิน',
-        html: html,
-        showCancelButton: true,
-        confirmButtonText: 'โอนเงินแล้ว (ส่งออเดอร์)',
-        confirmButtonColor: '#27ae60',
-        cancelButtonText: 'ยกเลิก',
-        allowOutsideClick: false,
-        didOpen: function() { 
-            $('#btn-dl-qr').on('click', function() { downloadQrImage(qrUrl); }); 
-        },
-        preConfirm: function() {
-            var fileInput = document.getElementById('slip-upload');
-            if (fileInput.files.length === 0) {
-                Swal.showValidationMessage('⚠️ กรุณาแนบสลิปโอนเงินก่อนกดยืนยันออเดอร์');
-                return false;
-            }
-            var file = fileInput.files[0];
-            
-            return new Promise(function(resolve) {
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                    var img = new Image();
-                    img.onload = function() {
-                        var canvas = document.createElement('canvas');
-                        // แก้ไข 1: ลดขนาดสูงสุดเหลือ 600 เพื่อให้อัปโหลดไวขึ้น ลดโอกาส Timeout
-                        var MAX_WIDTH = 600;  
-                        var MAX_HEIGHT = 600; 
-                        var width = img.width;
-                        var height = img.height;
-
-                        if (width > height) {
-                            if (width > MAX_WIDTH) {
-                                height *= MAX_WIDTH / width;
-                                width = MAX_WIDTH;
-                            }
-                        } else {
-                            if (height > MAX_HEIGHT) {
-                                width *= MAX_HEIGHT / height;
-                                height = MAX_HEIGHT;
-                            }
-                        }
-
-                        canvas.width = width;
-                        canvas.height = height;
-                        var ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-                        
-                        // แก้ไข 2: ปรับลดคุณภาพเหลือ 0.6 (60%) ไฟล์จะเล็กลงมากแต่ยังอ่านตัวหนังสือออก
-                        var dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-                        var base64 = dataUrl.split(',')[1]; 
-                        resolve(base64);
-                    };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-    }).then(function(result) {
-        if (result.isConfirmed) {
-            var slipBase64 = result.value;
-            submitOrderToSheet(total, note, "โอนเงิน", slipBase64); 
-        } else {
+        function clearCartOnSuccess(orderId) {
             localStorage.removeItem('bch_pending_order');
-            showCheckoutOptions(total, currentCartNote);
+            cart = [];
+            currentCartNote = "";
+            currentCheckoutState = { ecoOptions: [], deliveryMethod: 'รับเอง', pickupTime: '', deliveryLocation: '', deliveryTime: '', paymentMethod: 'โอนเงิน' };
+            updateCartBadge();
+            Swal.fire({ 
+                icon: 'success', 
+                title: 'สั่งอาหารสำเร็จ!', 
+                html: 'Order ID: ' + orderId + '<br>ระบบได้รับออเดอร์เรียบร้อยแล้ว ขอพระเจ้าอวยพระพร', 
+                confirmButtonColor: '#ff6b35', 
+                showCloseButton: true 
+            });
         }
-    });
-}
 
-function submitOrderToSheet(total, note, status, slipBase64) {
-    // ปรับข้อความให้ลูกค้ารู้ว่าอาจใช้เวลาอัปโหลดรูป
-    Swal.fire({
-        title: 'กำลังส่งออเดอร์...', 
-        text: 'รอสักครู่ ระบบกำลังอัปโหลดสลิป (อาจใช้เวลา 5-15 วินาที)', 
-        allowOutsideClick: false, 
-        didOpen: function(){ Swal.showLoading(); } 
-    });
-    
-    var finalSlip = slipBase64 ? slipBase64 : null;
-    var orderData = { user: currentUser, cart: cart, total: total, note: note, status: status, slipImage: finalSlip };
-    
-    callApi('saveOrder', orderData).then(function(res){
-        if(res.status) {
-            // สำเร็จปกติ -> ล้างตะกร้า
-            clearCartOnSuccess(res.orderId);
-        } else { 
-            Swal.fire({title: 'เกิดข้อผิดพลาด', text: res.msg, icon: 'error'}); 
-        }
-    }).catch(function(err) {
-        // แก้ไข 3: เกิด Network Timeout! มือถือเน็ตช้าจนหลุด 
-        // เราจะสั่งให้ระบบแอบไปเช็ค Sheet ว่าจริงๆ แล้วออเดอร์เซฟผ่านไปแล้วหรือยัง
-        Swal.fire({
-            title: 'เน็ตสะดุด / ตรวจสอบข้อมูล...', 
-            text: 'การเชื่อมต่อขัดข้อง กำลังตรวจสอบว่าออเดอร์ถูกบันทึกหรือยัง...', 
-            allowOutsideClick: false, 
-            didOpen: function(){ Swal.showLoading(); }
-        });
+        function showPaymentQr(total, note) {
+            localStorage.setItem('bch_pending_order', JSON.stringify({ total: total, note: note, cart: cart, payment_method: 'โอนเงิน' }));
+            var amount = parseFloat(total).toFixed(2);
+            var qrUrl = 'https://promptpay.io/' + PROMPTPAY_ID + '/' + amount;
+            
+            var html = `
+                <div class="text-center">
+                    <div class="mb-2">ยอดชำระ: <strong class="text-danger fs-4">${amount}</strong> บาท</div>
+                    <div class="border p-2 d-inline-block rounded bg-white shadow-sm mb-3">
+                        <img id="qr-image" src="https://lh3.googleusercontent.com/d/1OSPnc96ejBHV7Z6CFSNWc8t86INNwKDh" width="250" height="300" alt="PromptPay QR" onerror="this.onerror=null;this.src='https://placehold.co/250x250?text=Error+Loading+QR';">
+                    </div>
+                    <div class="d-grid gap-2 col-8 mx-auto mb-3">
+                        <button type="button" class="btn btn-outline-primary rounded-pill btn-sm" id="btn-dl-qr">
+                            <i class="fas fa-download"></i> กดค้างที่ QR เพื่อบันทึกรูป
+                        </button>
+                    </div>
+                    <hr>
+                    <div class="text-start mt-2">
+                        <label class="form-label fw-bold text-danger small"><i class="fas fa-camera"></i> แนบสลิปโอนเงิน (บังคับ)</label>
+                        <input class="form-control form-control-sm" type="file" id="slip-upload" accept="image/jpeg, image/png">
+                    </div>
+                </div>`;
+            
+            Swal.fire({
+                title: 'สแกนจ่ายเงิน',
+                html: html,
+                showCancelButton: true,
+                confirmButtonText: 'โอนเงินแล้ว (ส่งออเดอร์)',
+                confirmButtonColor: '#27ae60',
+                cancelButtonText: 'ยกเลิก',
+                allowOutsideClick: false,
+                didOpen: function() { 
+                    $('#btn-dl-qr').on('click', function() { downloadQrImage(qrUrl); }); 
+                },
+                preConfirm: function() {
+                    var fileInput = document.getElementById('slip-upload');
+                    if (fileInput.files.length === 0) {
+                        Swal.showValidationMessage('⚠️ กรุณาแนบสลิปโอนเงินก่อนกดยืนยันออเดอร์');
+                        return false;
+                    }
+                    var file = fileInput.files[0];
+                    
+                    return new Promise(function(resolve) {
+                        var reader = new FileReader();
+                        reader.onload = function(e) {
+                            var img = new Image();
+                            img.onload = function() {
+                                var canvas = document.createElement('canvas');
+                                // แก้ไข 1: ลดขนาดสูงสุดเหลือ 600 เพื่อให้อัปโหลดไวขึ้น ลดโอกาส Timeout
+                                var MAX_WIDTH = 600;  
+                                var MAX_HEIGHT = 600; 
+                                var width = img.width;
+                                var height = img.height;
 
-        // เรียก API ดึงออเดอร์ล่าสุดของเบอร์โทรนี้มาเช็ค
-        callApi('getLatestOrder', { phone: currentUser.phone }).then(function(checkRes) {
-            if (checkRes.status) {
-                // ถ้าดึงมาแล้วพบว่า "ยอดรวมเท่ากัน" ถือว่าออเดอร์เมื่อกี้เซฟเข้า Sheet ไปเรียบร้อยแล้ว
-                if (checkRes.data.total == total) {
-                    clearCartOnSuccess(checkRes.data.orderId);
-                    return;
+                                if (width > height) {
+                                    if (width > MAX_WIDTH) {
+                                        height *= MAX_WIDTH / width;
+                                        width = MAX_WIDTH;
+                                    }
+                                } else {
+                                    if (height > MAX_HEIGHT) {
+                                        width *= MAX_HEIGHT / height;
+                                        height = MAX_HEIGHT;
+                                    }
+                                }
+
+                                canvas.width = width;
+                                canvas.height = height;
+                                var ctx = canvas.getContext('2d');
+                                ctx.drawImage(img, 0, 0, width, height);
+                                
+                                // แก้ไข 2: ปรับลดคุณภาพเหลือ 0.6 (60%) ไฟล์จะเล็กลงมากแต่ยังอ่านตัวหนังสือออก
+                                var dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                                var base64 = dataUrl.split(',')[1]; 
+                                resolve(base64);
+                            };
+                            img.src = e.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    });
                 }
-            }
-            // ถ้าไม่เจอออเดอร์ หรือยอดไม่ตรง แสดงว่าอัปโหลดไม่ผ่านจริงๆ ให้แจ้ง Error
-            Swal.fire({
-                title: 'ส่งข้อมูลไม่สำเร็จ', 
-                text: 'กรุณากดส่งออเดอร์ใหม่อีกครั้งครับ (หากส่งสำเร็จไปแล้ว ระบบจะไม่ทำการบันทึกซ้ำ)', 
-                icon: 'error',
-                confirmButtonColor: '#ff6b35'
+            }).then(function(result) {
+                if (result.isConfirmed) {
+                    var slipBase64 = result.value;
+                    submitOrderToSheet(total, note, "โอนเงิน", slipBase64); 
+                } else {
+                    localStorage.removeItem('bch_pending_order');
+                    showCheckoutOptions(total, currentCartNote);
+                }
             });
-        }).catch(function(err2) {
-            // เช็คไม่ได้อีกรอบ แสดงว่าเน็ตหลุดจริงๆ ให้ลูกค้าตรวจเน็ตเอง
-            Swal.fire({
-                title: 'ไม่สามารถติดต่อเซิร์ฟเวอร์', 
-                text: 'กรุณาตรวจสอบอินเทอร์เน็ต และลองเช็คสถานะออเดอร์ล่าสุดที่หน้าแรกก่อนกดส่งซ้ำครับ', 
-                icon: 'error',
-                confirmButtonColor: '#ff6b35'
-            });
-        });
-    });
-}
-        
         }
+
+        function submitOrderToSheet(total, note, status, slipBase64) {
+            // ปรับข้อความให้ลูกค้ารู้ว่าอาจใช้เวลาอัปโหลดรูป
+            Swal.fire({
+                title: 'กำลังส่งออเดอร์...', 
+                text: 'รอสักครู่ ระบบกำลังอัปโหลดสลิป (อาจใช้เวลา 5-15 วินาที)', 
+                allowOutsideClick: false, 
+                didOpen: function(){ Swal.showLoading(); } 
+            });
+            
+            var finalSlip = slipBase64 ? slipBase64 : null;
+            var orderData = { user: currentUser, cart: cart, total: total, note: note, status: status, slipImage: finalSlip };
+            
+            callApi('saveOrder', orderData).then(function(res){
+                if(res.status) {
+                    // สำเร็จปกติ -> ล้างตะกร้า
+                    clearCartOnSuccess(res.orderId);
+                } else { 
+                    Swal.fire({title: 'เกิดข้อผิดพลาด', text: res.msg, icon: 'error'}); 
+                }
+            }).catch(function(err) {
+                // แก้ไข 3: เกิด Network Timeout! มือถือเน็ตช้าจนหลุด 
+                // เราจะสั่งให้ระบบแอบไปเช็ค Sheet ว่าจริงๆ แล้วออเดอร์เซฟผ่านไปแล้วหรือยัง
+                Swal.fire({
+                    title: 'เน็ตสะดุด / ตรวจสอบข้อมูล...', 
+                    text: 'การเชื่อมต่อขัดข้อง กำลังตรวจสอบว่าออเดอร์ถูกบันทึกหรือยัง...', 
+                    allowOutsideClick: false, 
+                    didOpen: function(){ Swal.showLoading(); }
+                });
+
+                // เรียก API ดึงออเดอร์ล่าสุดของเบอร์โทรนี้มาเช็ค
+                callApi('getLatestOrder', { phone: currentUser.phone }).then(function(checkRes) {
+                    if (checkRes.status) {
+                        // ถ้าดึงมาแล้วพบว่า "ยอดรวมเท่ากัน" ถือว่าออเดอร์เมื่อกี้เซฟเข้า Sheet ไปเรียบร้อยแล้ว
+                        if (checkRes.data.total == total) {
+                            clearCartOnSuccess(checkRes.data.orderId);
+                            return;
+                        }
+                    }
+                    // ถ้าไม่เจอออเดอร์ หรือยอดไม่ตรง แสดงว่าอัปโหลดไม่ผ่านจริงๆ ให้แจ้ง Error
+                    Swal.fire({
+                        title: 'ส่งข้อมูลไม่สำเร็จ', 
+                        text: 'กรุณากดส่งออเดอร์ใหม่อีกครั้งครับ (หากส่งสำเร็จไปแล้ว ระบบจะไม่ทำการบันทึกซ้ำ)', 
+                        icon: 'error',
+                        confirmButtonColor: '#ff6b35'
+                    });
+                }).catch(function(err2) {
+                    // เช็คไม่ได้อีกรอบ แสดงว่าเน็ตหลุดจริงๆ ให้ลูกค้าตรวจเน็ตเอง
+                    Swal.fire({
+                        title: 'ไม่สามารถติดต่อเซิร์ฟเวอร์', 
+                        text: 'กรุณาตรวจสอบอินเทอร์เน็ต และลองเช็คสถานะออเดอร์ล่าสุดที่หน้าแรกก่อนกดส่งซ้ำครับ', 
+                        icon: 'error',
+                        confirmButtonColor: '#ff6b35'
+                    });
+                });
+            });
+        }
+        
         function downloadQrImage(url) {
             Swal.fire({
                 title: 'บันทึกรูปภาพ',
