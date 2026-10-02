@@ -729,7 +729,23 @@
             }
         }
 
-        function showPaymentQr(total, note) {
+        // ฟังก์ชันล้างตะกร้า (แยกออกมาเพื่อให้เรียกใช้ง่ายขึ้น)
+function clearCartOnSuccess(orderId) {
+    localStorage.removeItem('bch_pending_order');
+    cart = [];
+    currentCartNote = "";
+    currentCheckoutState = { ecoOptions: [], deliveryMethod: 'รับเอง', pickupTime: '', deliveryLocation: '', deliveryTime: '', paymentMethod: 'โอนเงิน' };
+    updateCartBadge();
+    Swal.fire({ 
+        icon: 'success', 
+        title: 'สั่งอาหารสำเร็จ!', 
+        html: 'Order ID: ' + orderId + '<br>ระบบได้รับออเดอร์เรียบร้อยแล้ว ขอพระเจ้าอวยพระพร', 
+        confirmButtonColor: '#ff6b35', 
+        showCloseButton: true 
+    });
+}
+
+function showPaymentQr(total, note) {
     localStorage.setItem('bch_pending_order', JSON.stringify({ total: total, note: note, cart: cart, payment_method: 'โอนเงิน' }));
     var amount = parseFloat(total).toFixed(2);
     var qrUrl = 'https://promptpay.io/' + PROMPTPAY_ID + '/' + amount;
@@ -765,26 +781,24 @@
         },
         preConfirm: function() {
             var fileInput = document.getElementById('slip-upload');
-            // เช็คว่าแนบไฟล์หรือยัง
             if (fileInput.files.length === 0) {
                 Swal.showValidationMessage('⚠️ กรุณาแนบสลิปโอนเงินก่อนกดยืนยันออเดอร์');
                 return false;
             }
             var file = fileInput.files[0];
             
-            // แปลงไฟล์และย่อขนาดรูปด้วย Canvas
             return new Promise(function(resolve) {
                 var reader = new FileReader();
                 reader.onload = function(e) {
                     var img = new Image();
                     img.onload = function() {
                         var canvas = document.createElement('canvas');
-                        var MAX_WIDTH = 800;  // จำกัดความกว้างสูงสุดที่ 800px
-                        var MAX_HEIGHT = 800; // จำกัดความสูงสูงสุดที่ 800px
+                        // แก้ไข 1: ลดขนาดสูงสุดเหลือ 600 เพื่อให้อัปโหลดไวขึ้น ลดโอกาส Timeout
+                        var MAX_WIDTH = 600;  
+                        var MAX_HEIGHT = 600; 
                         var width = img.width;
                         var height = img.height;
 
-                        // คำนวณสัดส่วนรูปภาพไม่ให้เสียทรง
                         if (width > height) {
                             if (width > MAX_WIDTH) {
                                 height *= MAX_WIDTH / width;
@@ -797,14 +811,13 @@
                             }
                         }
 
-                        // วาดรูปใหม่ลงบน Canvas ด้วยขนาดที่เล็กลง
                         canvas.width = width;
                         canvas.height = height;
                         var ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
                         
-                        // แปลงกลับเป็น Base64 แบบ JPEG (คุณภาพ 80% เพื่อให้ไฟล์เล็ก)
-                        var dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                        // แก้ไข 2: ปรับลดคุณภาพเหลือ 0.6 (60%) ไฟล์จะเล็กลงมากแต่ยังอ่านตัวหนังสือออก
+                        var dataUrl = canvas.toDataURL('image/jpeg', 0.6);
                         var base64 = dataUrl.split(',')[1]; 
                         resolve(base64);
                     };
@@ -814,16 +827,74 @@
             });
         }
     }).then(function(result) {
-            if (result.isConfirmed) {
-                var slipBase64 = result.value;
-                submitOrderToSheet(total, note, "โอนเงิน", slipBase64); 
-            } else {
-                localStorage.removeItem('bch_pending_order');
-                // เปลี่ยนจาก renderCartModal() เป็นกลับไปหน้ารายละเอียดการสั่งซื้อพร้อมค่าเดิม
-                showCheckoutOptions(total, currentCartNote);
-            }
-        });
+        if (result.isConfirmed) {
+            var slipBase64 = result.value;
+            submitOrderToSheet(total, note, "โอนเงิน", slipBase64); 
+        } else {
+            localStorage.removeItem('bch_pending_order');
+            showCheckoutOptions(total, currentCartNote);
+        }
+    });
 }
+
+function submitOrderToSheet(total, note, status, slipBase64) {
+    // ปรับข้อความให้ลูกค้ารู้ว่าอาจใช้เวลาอัปโหลดรูป
+    Swal.fire({
+        title: 'กำลังส่งออเดอร์...', 
+        text: 'รอสักครู่ ระบบกำลังอัปโหลดสลิป (อาจใช้เวลา 5-15 วินาที)', 
+        allowOutsideClick: false, 
+        didOpen: function(){ Swal.showLoading(); } 
+    });
+    
+    var finalSlip = slipBase64 ? slipBase64 : null;
+    var orderData = { user: currentUser, cart: cart, total: total, note: note, status: status, slipImage: finalSlip };
+    
+    callApi('saveOrder', orderData).then(function(res){
+        if(res.status) {
+            // สำเร็จปกติ -> ล้างตะกร้า
+            clearCartOnSuccess(res.orderId);
+        } else { 
+            Swal.fire({title: 'เกิดข้อผิดพลาด', text: res.msg, icon: 'error'}); 
+        }
+    }).catch(function(err) {
+        // แก้ไข 3: เกิด Network Timeout! มือถือเน็ตช้าจนหลุด 
+        // เราจะสั่งให้ระบบแอบไปเช็ค Sheet ว่าจริงๆ แล้วออเดอร์เซฟผ่านไปแล้วหรือยัง
+        Swal.fire({
+            title: 'เน็ตสะดุด / ตรวจสอบข้อมูล...', 
+            text: 'การเชื่อมต่อขัดข้อง กำลังตรวจสอบว่าออเดอร์ถูกบันทึกหรือยัง...', 
+            allowOutsideClick: false, 
+            didOpen: function(){ Swal.showLoading(); }
+        });
+
+        // เรียก API ดึงออเดอร์ล่าสุดของเบอร์โทรนี้มาเช็ค
+        callApi('getLatestOrder', { phone: currentUser.phone }).then(function(checkRes) {
+            if (checkRes.status) {
+                // ถ้าดึงมาแล้วพบว่า "ยอดรวมเท่ากัน" ถือว่าออเดอร์เมื่อกี้เซฟเข้า Sheet ไปเรียบร้อยแล้ว
+                if (checkRes.data.total == total) {
+                    clearCartOnSuccess(checkRes.data.orderId);
+                    return;
+                }
+            }
+            // ถ้าไม่เจอออเดอร์ หรือยอดไม่ตรง แสดงว่าอัปโหลดไม่ผ่านจริงๆ ให้แจ้ง Error
+            Swal.fire({
+                title: 'ส่งข้อมูลไม่สำเร็จ', 
+                text: 'กรุณากดส่งออเดอร์ใหม่อีกครั้งครับ (หากส่งสำเร็จไปแล้ว ระบบจะไม่ทำการบันทึกซ้ำ)', 
+                icon: 'error',
+                confirmButtonColor: '#ff6b35'
+            });
+        }).catch(function(err2) {
+            // เช็คไม่ได้อีกรอบ แสดงว่าเน็ตหลุดจริงๆ ให้ลูกค้าตรวจเน็ตเอง
+            Swal.fire({
+                title: 'ไม่สามารถติดต่อเซิร์ฟเวอร์', 
+                text: 'กรุณาตรวจสอบอินเทอร์เน็ต และลองเช็คสถานะออเดอร์ล่าสุดที่หน้าแรกก่อนกดส่งซ้ำครับ', 
+                icon: 'error',
+                confirmButtonColor: '#ff6b35'
+            });
+        });
+    });
+}
+        
+        }
         function downloadQrImage(url) {
             Swal.fire({
                 title: 'บันทึกรูปภาพ',
@@ -831,26 +902,6 @@
                 showCloseButton: true,
                 confirmButtonText: 'ปิด'
             });
-        }
-
-        function submitOrderToSheet(total, note, status, slipBase64) {
-            Swal.fire({title: 'กำลังส่งออเดอร์...', text: 'กรุณารอสักครู่', allowOutsideClick: false, didOpen: function(){ Swal.showLoading(); } });
-            
-            var finalSlip = slipBase64 ? slipBase64 : null;
-            var orderData = { user: currentUser, cart: cart, total: total, note: note, status: status, slipImage: finalSlip };
-            
-            callApi('saveOrder', orderData).then(function(res){
-                if(res.status) {
-                    localStorage.removeItem('bch_pending_order'); 
-                    cart = []; 
-                    currentCartNote = ""; // เคลียร์ข้อความทิ้ง
-                    // รีเซ็ตค่า Checkout ทิ้งเมื่อสั่งซื้อสำเร็จ
-                    currentCheckoutState = { ecoOptions: [], deliveryMethod: 'รับเอง', pickupTime: '', deliveryLocation: '', deliveryTime: '', paymentMethod: 'โอนเงิน' };
-                    updateCartBadge();
-
-                    Swal.fire({ icon: 'success', title: 'สั่งอาหารสำเร็จ!', html: 'Order ID: ' + res.orderId + '<br>ขอบคุณที่ใช้บริการ ขอพระเจ้าอวยพระพร', confirmButtonColor: '#ff6b35', showCloseButton: true });
-                } else { Swal.fire({title: 'Error', text: res.msg, icon: 'error'}); }
-            }).catch(err => Swal.fire('Error', 'Connection Failed', 'error'));
         }
     </script>
 </body>
