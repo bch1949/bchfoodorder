@@ -361,7 +361,7 @@
         function openMenu2() {
             var now = new Date(); var hour = now.getHours(); var dayOfWeek = now.getDay();
             if (dayOfWeek === 0 || dayOfWeek === 6) { return Swal.fire({icon: 'warning', title: 'ปิดบริการ', text: 'เปิดให้บริการวันจันทร์-ศุกร์ ครับ'}); }
-            if (hour < 6 || hour >= 14) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 14:00 น.'}); }
+            if (hour < 6 || hour >= 15) { return Swal.fire({icon: 'warning', title: 'นอกเวลาให้บริการ', text: '06:00 - 15:00 น.'}); }
             
             if (menuData.menu2.length > 0) {
                 askMenu2Format();
