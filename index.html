@@ -314,13 +314,18 @@
             
             // นำค่า kcal, protein, sodium มาซ่อนไว้ใน value ของ option
             var meatHtml = item.meats.map(function(m){ return '<option value="'+m.name+'|'+m.price+'|'+m.kcal+'|'+m.protein+'|'+m.sodium+'">'+m.name+' ('+(m.price>0 ? '+'+m.price : 'ปกติ')+')</option>'; }).join('');
-            var toppingHtml = item.toppings.map(function(t){ return '<div class="form-check"><input class="form-check-input topping-check" type="checkbox" value="'+t.name+'|'+t.price+'|'+t.kcal+'|'+t.protein+'|'+t.sodium+'" id="top-'+t.name+'"><label class="form-check-label" for="top-'+t.name+'">'+t.name+' (+'+t.price+')</label></div>'; }).join('');
-            
-            var validTypes = item.types.filter(function(t) { return t.trim() !== ""; });
-            var typeBlock = validTypes.length > 0 ? '<div class="mb-2"><label class="fw-bold">ประเภท</label><select id="sel-type" class="form-select">'+validTypes.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('')+'</select></div>' : '<input type="hidden" id="sel-type" value="">';
+            var toppingHtml = item.toppings.length > 0
+    ? '<div class="mb-2"><label class="fw-bold mb-1">Topping</label><div class="row g-1">' +
+      item.toppings.map(function(t, idx){
+          return '<div class="col-6"><div class="form-check"><input class="form-check-input topping-check" type="checkbox" value="'+t.name+'|'+t.price+'|'+t.kcal+'|'+t.protein+'|'+t.sodium+'" id="top-'+idx+'"><label class="form-check-label small" for="top-'+idx+'">'+t.name+' (+'+t.price+')</label></div></div>';
+      }).join('') +
+      '</div></div>'
+    : '';
 
-            var popupHtml = '<div class="text-start px-3"><div class="mb-2"><label class="fw-bold">เนื้อสัตว์</label><select id="sel-meat" class="form-select">'+meatHtml+'</select></div>' + typeBlock + '<div class="mb-2"><label class="fw-bold">Topping</label>'+toppingHtml+'</div><div class="mt-3 text-center"><label class="fw-bold d-block mb-1">จำนวน</label><div class="btn-group"><button class="btn btn-outline-secondary" onclick="stepQty(-1)">-</button><input type="number" id="sel-qty" class="form-control text-center" value="1" readonly style="width: 60px;"><button class="btn btn-outline-secondary" onclick="stepQty(1)">+</button></div></div></div>';
+var validTypes = item.types.filter(function(t) { return t.trim() !== ""; });
+var typeBlock = validTypes.length > 0 ? '<div class="mb-2"><label class="fw-bold">ประเภท</label><select id="sel-type" class="form-select">'+validTypes.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('')+'</select></div>' : '<input type="hidden" id="sel-type" value="">';
 
+var popupHtml = '<div class="text-start px-3"><div class="mb-2"><label class="fw-bold">เนื้อสัตว์</label><select id="sel-meat" class="form-select">'+meatHtml+'</select></div>' + typeBlock + toppingHtml + '<div class="mt-3 text-center"><label class="fw-bold d-block mb-1">จำนวน</label><div class="btn-group"><button class="btn btn-outline-secondary" onclick="stepQty(-1)">-</button><input type="number" id="sel-qty" class="form-control text-center" value="1" readonly style="width: 60px;"><button class="btn btn-outline-secondary" onclick="stepQty(1)">+</button></div></div></div>';
             Swal.fire({
                 title: item.name, html: popupHtml, showCloseButton: true, confirmButtonText: 'ใส่ตะกร้า', confirmButtonColor: '#ff6b35',
                 preConfirm: function() {
